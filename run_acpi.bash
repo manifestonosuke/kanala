@@ -1,5 +1,11 @@
 #!/bin/bash
 # Determine program name
+
+# This script has been build when acpi started to stop discrete card on hybrid graphix
+# This modules need to be compiled every kernel release
+# Original code is acpi_call.c
+
+
 PRGDIR=`type $0 | awk '{print $3}'`
 PRGNAME=`basename $0`
 PRGNAME=`basename $0 |  awk -F '.' '{print $1}'`
