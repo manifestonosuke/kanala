@@ -1,0 +1,165 @@
+#!/bin/bash
+# Determine program name
+PRGDIR=`type $0 | awk '{print $3}'`
+PRGNAME=`basename $0`
+PRGNAME=`basename $0 |  awk -F '.' '{print $1}'`
+
+# Get absolute path name of the script
+PWD=`pwd`
+DIRNAME=`dirname $0| sed 's/^\.//'`
+LIB="$PWD/$DIRNAME"
+
+# Debug variable
+DEBUG=0
+
+trap 'trapfunc' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
+
+function trapfunc {
+#echo "trapped"
+printf "%-10s %-10s %-22s %-30s \n" "Info :" "$PRGNAME : " "Program aborted"
+end
+exit
+}
+
+function usage {
+cat << FIN
+Manage local FS devices
+Wihtout arg display dev + label and exit
+usage : $PRGNAME 
+        -d : run in debug mode
+	-l : Display linux type only (ext4) 	
+	-m : mount all devices ext4 to /media/\$LABEL (create if not exist)
+	-p : purge $MNT fs (remove all not mounted sub-directory
+	-s : mount a single ressource (based on LABEL)
+	-u : umount all FS not listed in /etc/fstab
+	-v : full verbose mode
+FIN
+}
+
+function end {
+if [ $# -ne 0 ];
+then
+        RET=$1
+else
+        RET=0
+fi
+if [ -f {$TMPF1:=DUMMY.$$} ] ;
+then
+      rm $TMPF1
+fi
+        exit $RET
+}
+
+function rundiag() {
+echo > /dev/null
+}
+
+mount_device() {
+if [ $# -ne 2 ] ;
+then
+	printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "mount_device : " "Arg not OK  $#"
+	return
+fi
+DEV=$1
+LABEL=$2
+DUMMY=$(df -t ext4 | grep -w $DEV  | awk '{print $NF}')
+NBCHAR=$(echo $DUMMY | wc -c)
+if [ $NBCHAR -eq 1 ] ; 
+then 
+	if [ ! -d /mnt/$LABEL ] ;
+	then
+		mkdir /mnt/$LABEL
+		if [ $? -ne 0 ] ;
+		then
+			printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "mount_device : " "Error bulding  /mnt/$LABEL"
+			return
+		fi
+	fi
+	printf "%-10s %-10s %-22s %-30s \n" "INFO :" "mount_device : " "Mounting $DEV on /mnt/$LABEL"	
+	mount $DEV /mnt/$LABEL
+else
+	printf "%-10s %-10s %-22s %-30s \n" "INFO :" "mount_device : " "$DEV already mounted on $DUMMY"
+
+fi
+}
+
+purge() { 
+	printf "%-10s %-10s %-22s %-30s \n" "WARNING :" "mount_device : " "purge command not yet implemented"
+}
+
+
+umount_all() {
+LIST=$(df | grep /mnt | awk '{print $NF  }')
+if [ A$LIST == A ]; 
+then 
+	printf "%-10s %-10s %-22s %-30s \n" "INFO :" "Nothing to unmount"
+	exit
+fi
+
+for i in $(echo $LIST) ;
+do
+	printf "%-10s %-10s %-22s %-30s \n" "INFO :" "umounting filesystem" "$i" 
+	umount $i
+done
+}
+
+MNT=/mnt
+DEBUG=0
+TYPE="NONE"
+MOUNT=0
+SINGLE=__NONE__
+LABEL=ext4
+
+while getopts dhlmps:u sarg
+do
+case $sarg in
+        d)      set -x
+        	DEBUG=1 ;;
+        h)      usage
+                end;;
+	l)	TYPE=linux
+		;;
+	p)	purge 
+		;;
+	m)	MOUNT=1
+		TYPE=linux
+		;;
+	s)	SINGLE=$OPTARG
+		;;
+	u)	umount_all
+		exit
+		;;
+        *)      echo "ERROR : $PRGNAME : Bad option or misusage"
+                usage
+                end ;;
+esac
+done
+
+COMMAND="blkid" 
+
+
+if [ "A$SINGLE" != "A__NONE__" ] ;
+then
+	DEV=$(blkid -L $SINGLE)
+	mount_device $DEV $SINGLE  
+	exit
+fi
+
+if [ $TYPE == "linux" ] ;
+then
+	COMMAND="$COMMAND -t TYPE=ext4 -s LABEL"
+else
+	COMMAND="$COMMAND -s LABEL"
+fi
+
+eval $COMMAND | while read line ; 
+do
+	DEV=$(echo $line | cut -d : -f 1)
+	LAB=$(echo $line | cut -d = -f 2 | sed s/\"//g)
+	if [ $MOUNT -eq 0 ] ;
+	then
+		printf "%-20s %-20s \n" "$DEV" "$LAB"
+	else
+		mount_device $DEV $LAB
+	fi
+done 
