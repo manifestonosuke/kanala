@@ -7,7 +7,7 @@ if [ $1 -ne 0 ];
 then 
 	shift
 	__print "$*" 
-	read dummy
+	read __DUM
 fi
 }
 
@@ -25,6 +25,7 @@ then
 	__print "admin group not id 120 admin:120" 
 exit
 fi
+amiroot
 }
 
 
@@ -50,13 +51,16 @@ else
 		__print "Need to be root to run this"
 		exit 1
 	fi
-
+fi
 }
 
 #Global vars
 SILENT=0
 
 #main
+
+check_first
+exit
 
 df /data > /dev/null 2>&1 
 if [ $? -ne 0 ];
@@ -120,5 +124,5 @@ if [ ! ~/root/.bashrc ];
 then
 	touch ~/root/.bashrc
 fi
-__print ". /data/local/env/bashrc.user" >> ~/root/.bashrc
+__print ". /data/local/env/bashrc.user" >> ~/.bashrc
 
