@@ -24,7 +24,7 @@ REZ=$(__print $REZ | cut -d ':' -f 3)
 if [ ${REZ:=0} -ne $ADMINGROUP ];
 then
 	__print "admin group not id $REZ admin:$ADMINGROUP" 
-exit
+	exit
 fi
 amiroot
 }
@@ -61,7 +61,6 @@ export SILENT=0
 #main
 
 check_first
-exit
 
 df /data > /dev/null 2>&1 
 if [ $? -ne 0 ];
