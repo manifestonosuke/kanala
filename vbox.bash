@@ -1,4 +1,13 @@
 #!/bin/bash
+
+#
+#	manifestonosuke@nosuke.org
+# This script ease vbox command line for basic actions like stop/start/status ...
+# Options are in usage() and can be check from cli with -h option 
+#
+#
+
+
 # Determine program name
 PRGDIR=`type $0 | awk '{print $3}'`
 PRGNAME=`basename $0`
