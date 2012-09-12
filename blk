@@ -89,7 +89,7 @@ purge() {
 
 umount_all() {
 LIST=$(df | grep /mnt | awk '{print $NF  }')
-if [ A$LIST == A ]; 
+if [ "A$LIST" == "A" ]; 
 then 
 	printf "%-10s %-10s %-22s %-30s \n" "INFO :" "Nothing to unmount"
 	exit
