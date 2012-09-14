@@ -1,0 +1,12 @@
+groupadd -g 10000 local
+useradd -u 2000 -g local,wheel -d /home/pierre -s /bin/bash  pierre 
+echo "/dev/sda4               /data           ext4    defaults        0 2" >> /etc/fstab
+mkdir /data
+mount /data
+ln -s /data/home/pierre /home/pierre
+usermod -G admin pierre
+
+#destination messages { file("/var/log/messages" group("admin") perm(0640)); };
+ls -lad /var/log/messages
+
+
