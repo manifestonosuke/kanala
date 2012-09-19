@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-#	manifestonosuke@nosuke.org
+#	manifestonosuke@gmail.com
 # This script ease vbox command line for basic actions like stop/start/status ...
 # Options are in usage() and can be check from cli with -h option 
 #
@@ -102,8 +102,6 @@ shift
 local __INFO=$1
 shift
 local __MSG="$*"
-#if [ "$__LEVEL == VERBOSE" -a "${VERBOSE:=0} -eq 1" ];
-#if [[ $__LEVEL == VERBOSE ]]  &&  [[ $VERBOSE -eq 1 ]];
 if [ $__LEVEL == "VERBOSE" ] ;
 then
 	[[ $VERBOSE -eq 1 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "INFO :" "$__INFO : " "$__MSG"

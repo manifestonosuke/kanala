@@ -88,6 +88,7 @@ then
 	groupadd -g $ADMINGROUP admin
 fi
 
+ALLGROUPS="wheel vboxuser"
 for i in $(ls -d /data/home/*) ;
 do
 	LOCALUID=$(ls -ladn $i | awk '{print $3}')
@@ -103,11 +104,15 @@ do
 	fi
 	if [ $USERNAME == "pierre" ] ; 
 	then
-	getent group wheel > /dev/nul 2>&1 
+	for i in $(echo $ALLGROUPS) ;
+	do
+	getent group $i > /dev/nul 2>&1 
 	if [ $? -eq 0 ]; 
 	then
-		usermod -G wheel pierre
+		__print "Add user pierre to $i group"
+		usermod -G $i pierre
 	fi
+	done
 	fi
 done
 
