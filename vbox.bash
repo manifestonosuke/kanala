@@ -66,21 +66,20 @@ __VBOXGROUP=$2
 if [ $__USER == "root" ];
 then
 	__print "VERBOSE" "$PRGNAME" "Perm check : Root user allowed by default for Vbox"
-	return 0
-	
-fi
-__NEEDED_ID=$(getent group $__VBOXGROUP| cut -d ':' -f 3)
-__GROUP_USER=$(id -G $__USER)
-if [ $? -ne 0 ];
-then
-	__print "ERROR" "$PRGNAME" "Cant get $__USER groups"
-	end 3
-fi
-echo $__GROUP_USER  | egrep -w $__NEEDED_ID > /dev/null 
-if [ $? -ne 0 ];
-then
-	__print "ERROR" "$PRGNAME" "$__USER dont belong to $__VBOXGROUP($__NEEDED_ID)"
-	end 3
+else
+	__NEEDED_ID=$(getent group $__VBOXGROUP| cut -d ':' -f 3)
+	__GROUP_USER=$(id -G $__USER)
+	if [ $? -ne 0 ];
+	then
+		__print "ERROR" "$PRGNAME" "Cant get $__USER groups"
+		end 3
+	fi
+	echo $__GROUP_USER  | egrep -w $__NEEDED_ID > /dev/null 
+	if [ $? -ne 0 ];
+	then
+		__print "ERROR" "$PRGNAME" "$__USER dont belong to $__VBOXGROUP($__NEEDED_ID)"
+		end 3
+	fi
 fi
 return 0
 }
@@ -103,14 +102,17 @@ shift
 local __INFO=$1
 shift
 local __MSG="$*"
-if [ $__LEVEL == "VERBOSE" -a ${VERBOSE:=0} -eq 1 ];
+#if [ "$__LEVEL == VERBOSE" -a "${VERBOSE:=0} -eq 1" ];
+#if [[ $__LEVEL == VERBOSE ]]  &&  [[ $VERBOSE -eq 1 ]];
+if [ $__LEVEL == "VERBOSE" ] ;
 then
-	printf "%-10s %-10s %-22s %-30s \n" "INFO :" "$__INFO : " "$__MSG"
+	[[ $VERBOSE -eq 1 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "INFO :" "$__INFO : " "$__MSG"
 	return 0
-fi
-if [ ${SILENT:=0} -ne 1 ];
-then
-	printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
+else
+	if [ ${SILENT:=0} -ne 1 ];
+	then
+		printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
+	fi
 fi
 }
 
@@ -126,6 +128,30 @@ else
 fi
 }
 
+# 1 arg => silent response $?
+# more than 1 arg => optionnal args
+vbox_exist() {
+local __VBOX=$1
+local __VBOX_LIST=$(vbox_list_dry| cut -d ':' -f 3-)
+echo $__VBOX_LIST | egrep -w $__VBOX  > /dev/null
+local __REZ=$? 
+if [ $# -eq  1 ] ;
+then	
+	return $__REZ
+else
+	case $2 in 
+	V)	if [ $__REZ -eq 0 ] ;
+		then
+			__print "INFO" "$PRGNAME" "$__VBOX is existing"
+		else
+			__print "INFO" "$PRGNAME" "$__VBOX is NOT existing"
+		fi
+		;;
+	esac
+fi
+}
+
+
 vbox_status() {
 local __PARAM=$1
 if [ $(echo $__PARAM | tr '[:lower:]' '[:upper:]')  == "ALL" ] ; 
@@ -137,16 +163,21 @@ fi
 
 for i in $(echo $__LIST) ; 
 do
-echo "** VM : $i"
-VBoxManage showvminfo --machinereadable $i | awk -F '=' '
+if vbox_exist $i ;
+then
+	echo "** VM : $i"
+	VBoxManage showvminfo --machinereadable $i | awk -F '=' '
 $1 ~ /^ostype/ {printf "%s:%s\n",$1,$2} 
 $1 ~ /^VMState\y/ {printf "%s:%s\n",$1,$2} 
 $1 ~ /^memory/ {printf "%s:%s\n",$1,$2} 
 $1 ~ /^cpus/ {printf "%s:%s\n",$1,$2} 
 ' | sed s/\"//g | sed 's/:/		:	/' 
 
-local __IP=$(VBoxManage guestproperty get $i /VirtualBox/GuestInfo/Net/0/V4/IP | awk -F ':' '{print $2}')
-echo "IP Address	:	$__IP"
+	local __IP=$(VBoxManage guestproperty get $i /VirtualBox/GuestInfo/Net/0/V4/IP | awk -F ':' '{print $2}')
+	echo "IP Address	:	$__IP"
+else
+	__print "ERROR" "$PRGNAME" "$OPTARG VM is not existing"
+fi
 done 
 }
 
@@ -188,15 +219,26 @@ do
 case $sarg in
         d)      set -x
         	DEBUG=1 ;;
-	G)	VBoxSDL --startvm  $OPTARG  > /dev/null 2>&1 &	
+	G)	if vbox_exist $OPTARG ;
+		then
+			VBoxSDL --startvm  $OPTARG  > /dev/null 2>&1 &	
+		else
+			__print "ERROR" "$PRGNAME" "$OPTARG VM is not existing"
+		fi
 		end
 		;;
         h)      usage
                 end ;;
 	l)	vbox_run_status 
 		end ;;
-	O|p|r|R|s)	MANAGE=$sarg
-		TARGET=$OPTARG
+	O|p|r|R|s) if vbox_exist $OPTARG ;
+			then
+				MANAGE=$sarg
+				TARGET=$OPTARG
+			else    
+				__print "ERROR" "$PRGNAME" "$OPTARG VM is not existing"
+		fi
+		end
 		;;
 	S)	TARGET=$OPTARG
 		vbox_status $TARGET
@@ -214,22 +256,34 @@ if [ ${MANAGE:=NULL} != "NULL" ];
 then
 	case $MANAGE in
 	0)	VBoxManage controlvm $TARGET poweroff
-	end $?
+		REZ=$?
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not powerd off" 
+		end $?
 	;;
 	p)	VBoxManage controlvm $TARGET pause 
-	end $?
+		REZ=$?
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not pause" 
+		end $?
 	;; 
 	r)	VBoxManage controlvm $TARGET resume 
-	end $?
+		REZ=$?
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not resumed" 
+		end $?
 	;; 
 	R)	VBoxManage controlvm $TARGET reset 
-	end $?
+		REZ=$?
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not reset" 
+		end $?
 	;; 
 	s)	nohup VBoxHeadless --startvm $TARGET > $TMPF1 2>&1 &
-	end $?
+		REZ=$?
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not started" 
+		end $?
 	;; 
 	O)	VBoxManage controlvm $TARGET acpipowerbutton 
-	end $?
+		REZ=$?
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not powered down" 
+		end $?
 	;; 
 	*)	__print "ERROR" "PRGNAME" "Oh you shouldnt have come to this, probably a bug"
 		end 3 ;;
