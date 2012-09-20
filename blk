@@ -1,4 +1,12 @@
 #!/bin/bash
+
+# This script is used to deal with partition, blkid and disks label
+# It is used to mount/umount FS based on this label 
+# One can list this partition and based on label mount/umount ...
+# It is usefull as I have several distro and need to check them from another one.
+# See blk -h
+
+
 # Determine program name
 PRGDIR=`type $0 | awk '{print $3}'`
 PRGNAME=`basename $0`
