@@ -1,2 +1,20 @@
 Home made scripts for multi OS (linux) installation automation
-It included root environement files
+It included root environement files.
+
+As for now : 
+
+1 - vbox
+# This script ease vbox command line for basic actions like stop/start/status ...
+# Options are in usage() and can be check from cli with -h option 
+
+2 - blk
+# This script is used to deal with partition, blkid and disks label
+# It is used to mount/umount FS based on this label 
+# One can list this partition and based on label mount/umount ...
+# It is usefull as I have several distro and need to check them from another one.
+# See usage -h
+
+3 - run_acpi 
+# This script has been build to  start/stop discrete card on hybrid graphix
+# A module need to be compiled every kernel release from an original code called acpi_call.c
+# https://github.com/mkottman/acpi_call/blob/master/acpi_call.c
