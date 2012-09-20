@@ -146,6 +146,7 @@ else
 		fi
 		;;
 	esac
+	return $__REZ
 fi
 }
 
@@ -177,6 +178,30 @@ else
 	__print "ERROR" "$PRGNAME" "$OPTARG VM is not existing"
 fi
 done 
+}
+
+# Return status of one single vbox
+vbox_single_state() {
+case $# in 
+	0)	return 1 ;;
+	1)	local __THIS=$1	;;
+	2)	local __COMMAND=$1 
+		shift
+		local __THIS=$1
+		;;
+	*)	return 1 ;;
+esac
+if ! vbox_exist $__THIS ; 
+then
+	return 3
+fi
+
+if [ ${__COMMAND:=NULL} != "NULL" ] ; 
+then
+	__print "ERROR" "$PRGNAME" "You have requested vbox_single_state $__COMMAND"
+fi
+__STATUS=$(VBoxManage showvminfo $__THIS | grep State | cut -d ':' -f 2- | sed 's/  */ /g'| sed 's/  *$//' | awk '{print $1}')
+echo "$__STATUS"
 }
 
 vbox_run_status() {
@@ -211,8 +236,7 @@ then
 	end 0
 fi
 
-
-while getopts dG:hO:lp:r:R:s:S:v sarg
+while getopts dG:hO:lp:r:R:s:S:v0: sarg
 do
 case $sarg in
         d)      set -x
@@ -229,14 +253,14 @@ case $sarg in
                 end ;;
 	l)	vbox_run_status 
 		end ;;
-	O|p|r|R|s) if vbox_exist $OPTARG ;
+	0|O|p|r|R|s) if vbox_exist $OPTARG ;
 			then
 				MANAGE=$sarg
 				TARGET=$OPTARG
 			else    
 				__print "ERROR" "$PRGNAME" "$OPTARG VM is not existing"
+				end 0
 		fi
-		end
 		;;
 	S)	TARGET=$OPTARG
 		vbox_status $TARGET
@@ -255,32 +279,38 @@ then
 	case $MANAGE in
 	0)	VBoxManage controlvm $TARGET poweroff
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not powerd off" 
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not powerd off" 
 		end $?
 	;;
 	p)	VBoxManage controlvm $TARGET pause 
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not pause" 
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not pause" 
 		end $?
 	;; 
-	r)	VBoxManage controlvm $TARGET resume 
-		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not resumed" 
-		end $?
+	r)	STATE=$(vbox_single_state $TARGET)
+		if [ $STATE == "pause" ] ;
+		then
+			VBoxManage controlvm $TARGET resume 
+			REZ=$?
+			[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not resumed" 
+			end $?
+		else
+			printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET is not paused"
+		fi
 	;; 
 	R)	VBoxManage controlvm $TARGET reset 
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not reset" 
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not reset" 
 		end $?
 	;; 
 	s)	nohup VBoxHeadless --startvm $TARGET > $TMPF1 2>&1 &
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not started" 
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not started" 
 		end $?
 	;; 
 	O)	VBoxManage controlvm $TARGET acpipowerbutton 
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGE not powered down" 
+		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not powered down" 
 		end $?
 	;; 
 	*)	__print "ERROR" "PRGNAME" "Oh you shouldnt have come to this, probably a bug"
@@ -292,5 +322,5 @@ else
 fi
 
 
-exit
+end 0
 
