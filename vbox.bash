@@ -279,12 +279,12 @@ then
 	case $MANAGE in
 	0)	VBoxManage controlvm $TARGET poweroff
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not powerd off" 
+		[[ $REZ -ne 0 ]] &&  __print  "ERROR :" "$PRGNAME : " "$TARGET not powerd off" 
 		end $?
 	;;
 	p)	VBoxManage controlvm $TARGET pause 
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not pause" 
+		[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not pause" 
 		end $?
 	;; 
 	r)	STATE=$(vbox_single_state $TARGET)
@@ -292,25 +292,29 @@ then
 		then
 			VBoxManage controlvm $TARGET resume 
 			REZ=$?
-			[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not resumed" 
+			[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not resumed" 
 			end $?
 		else
-			printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET is not paused"
+			__print   "ERROR :" "$PRGNAME : " "$TARGET is not paused"
 		fi
 	;; 
 	R)	VBoxManage controlvm $TARGET reset 
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not reset" 
+		[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not reset" 
 		end $?
 	;; 
 	s)	nohup VBoxHeadless --startvm $TARGET > $TMPF1 2>&1 &
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not started" 
+		[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not started" 
+		if [ $REZ -eq 0 -a $VERBOSE -ne 0 ] ;
+		then 
+			__print   "INFO" "$PRGNAME" "$TARGET started, it may take some time to be ready" 
+		fi 
 		end $?
 	;; 
 	O)	VBoxManage controlvm $TARGET acpipowerbutton 
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "$TARGET not powered down" 
+		[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not powered down" 
 		end $?
 	;; 
 	*)	__print "ERROR" "PRGNAME" "Oh you shouldnt have come to this, probably a bug"
