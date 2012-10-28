@@ -18,3 +18,7 @@ As for now :
 # This script has been build to  start/stop discrete card on hybrid graphix
 # A module need to be compiled every kernel release from an original code called acpi_call.c
 # https://github.com/mkottman/acpi_call/blob/master/acpi_call.c
+
+4 - post-install 
+# This script is used for users sync after multi linux install on a single machine
+
