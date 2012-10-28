@@ -1,7 +1,26 @@
 #!/bin/bash
 
+# This script is used for users sync after multi linux install on a single machine
+
+# Define here the default values 
+# Local group for shared users 
 LOCALGROUP=10000
+# This is the admin group GID
 ADMINGROUP=120
+# This is all groups that are assigned by defaults for shared users
+ALLGROUPS="wheel vboxuser"
+# User to sync 
+# For now just one is supported
+USERTOSYNC=
+
+
+function check_user() {
+if [ ${USERTOSYNC:=NULL} == "NULL" ] ;
+then 
+	__print "USERTOSYNC not defined, exiting"
+	exit
+fi
+}
 
 function confirm() {
 if [ $1 -ne 0 ]; 
@@ -58,6 +77,7 @@ export SILENT=0
 #main
 
 amiroot
+check_user
 check_first
 
 df /data > /dev/null 2>&1 
@@ -73,6 +93,9 @@ then
 		__print "/data mount failed"
 		exit
 	fi
+else
+	__print "/data already mounted make sure mount is ok (any key to continue) "
+	read dummy
 fi
 
 __print "Creating group local"
@@ -86,7 +109,6 @@ then
 	groupadd -g $ADMINGROUP admin
 fi
 
-ALLGROUPS="wheel vboxuser"
 for i in $(ls -d /data/home/*) ;
 do
 	LOCALUID=$(ls -ladn $i | awk '{print $3}')
@@ -128,4 +150,11 @@ then
 	touch ~/root/.bashrc
 fi
 __print ". /data/local/env/bashrc.user" >> ~/.bashrc
+
+cat << fin > /root/.bashrc
+if [ -f /data/system/bashrc ] ;
+then
+        . /data/system/bashrc
+fi
+fin
 
