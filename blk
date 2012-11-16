@@ -81,13 +81,13 @@ echo > /dev/null
 
 get_valid_devname() { 
 local __ARG1
-local __DEV
-__ARG1=$1
-__DEV=$(blkid -L $CHROOT)
+__ARG1=$1 ; shift
+__DEV=$(blkid -L $__ARG1)
 if [ $? -ne 0 ] ;
 then 
-	printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "get_valid_devname" "$__ARG1 is not existing"
-	return 1 
+	printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "mount_device : " "Arg not OK  $#"
+	echo ""
+	exit 1 
 else
 	echo "$__DEV"
 	return 0
@@ -143,12 +143,35 @@ else
 
 fi
 case $OPTION in 
-	CHROOT) [[ ${VERBOSE:=0} -eq 1 ]] && echo "mount chroot  $*" ;;
+	CHROOT) [[ ${VERBOSE:=0} -eq 1 ]] && echo "mount chroot  $*" 
+	do_chroot /mnt/$LABEL;;
 	NONE) [[ ${VERBOSE:=0} -eq 1 ]] && echo "mount normal  $*" ;; 	
 	*) printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "mount_device2 : " "Error in running option arguments"
 esac
 
 }
+
+do_chroot() {
+local __MNT
+local __DUMMY 
+__MNT=$1 
+__DUMMY=$(df -h $__MNT | grep $__MNT) > /dev/null 2>&1 
+if [ ${__DUMMY:=EMPTY} == "EMPTY" ] 
+then
+	printf "%-10s %-10s %-22s %-30s \n" "WARNING" "do_chroot" "$__MNT suspisious, not a FS"
+fi
+
+printf "%-10s %-10s %-22s %-30s \n" "INFO" "do_chroot" "Mounting /proc /sys /dev, your original kernel is $(uname -r)"
+mount -t proc none $__MNT/proc
+mount -t sysfs none $__MNT/sys
+mount -o bind /dev $__MNT/dev
+printf "%-10s %-10s %-22s %-30s \n" "INFO" "do_chroot" "chrooting to $__MNT, quit with exit or ^D"
+chroot $__MNT /bin/bash
+umount $__MNT/proc $__MNT/sys $__MNT/dev 
+printf "%-10s %-10s %-22s %-30s \n" "INFO" "do_chroot" "exiting chroot $__MNT, umount sys devices"
+exit 0
+}
+
 
 mount_device() {
 if [ $# -ne 2 ] ;
@@ -241,9 +264,14 @@ OPTIND=1
 COMMAND="blkid" 
 
 
-
 if [ ${CHROOT:=__NONE__} != "__NONE__" ];
 then
+	DEV=$(get_valid_devname $CHROOT)
+	if [ $? -ne 0 ] 
+	then
+		printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "device for label $CHROOT not found"
+		exit 1
+	fi
 	#DEV=$(blkid -L $CHROOT)
 	DEV=$(get_valid_devname $CHROOT)
 	[[ $? -ne 0 ]] && end $?
@@ -253,7 +281,15 @@ fi
 
 if [ "A$SINGLE" != "A__NONE__" ] ;
 then
-	DEV=$(blkid -L $SINGLE)
+	DEV=$(get_valid_devname $SINGLE)
+	if [ $? -ne 0 ]
+	then
+		printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "device for label $SINGLE not found"
+		exit 1
+	fi
+	#get_valid_devname $SINGLE
+	#DEV=$(blkid -L $SINGLE)
+	DEV=$(get_valid_devname $SINGLE)
 	mount_device2 $DEV $SINGLE  
 	end
 fi
