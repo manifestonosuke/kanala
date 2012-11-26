@@ -158,3 +158,5 @@ then
 fi
 fin
 
+# KDE desktop icon fix
+#chromium-browser-chromium.desktop

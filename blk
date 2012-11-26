@@ -33,7 +33,7 @@ cat << FIN
 Manage local FS devices
 Wihtout arg display dev + label and exit
 usage : $PRGNAME 
-	-C : chroot the given partition
+	-C : As -s but then chroot the given partition
         -d : run in debug mode
 	-l : Display linux type only (ext4) 	
 	-m : mount all devices ext4 to /media/\$LABEL (create if not exist)
