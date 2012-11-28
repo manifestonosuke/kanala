@@ -8,7 +8,7 @@ LOCALGROUP=10000
 # This is the admin group GID
 ADMINGROUP=120
 # This is all groups that are assigned by defaults for shared users
-ALLGROUPS="wheel vboxuser"
+ADMGROUPS="wheel vboxuser admin"
 # User to sync 
 # For now just one is supported
 USERTOSYNC=
@@ -71,6 +71,47 @@ else
 fi
 }
 
+is_existing() {
+local __SOURCE=$1 
+shift
+local __PARAM=$*
+getent $__SOURCE $__PARAM > /dev/null 2>&1
+RET=$?
+echo $RET
+return $RET
+}
+
+# return 0 if param is yes 
+# return 1 else 
+# Yes can be as variables below 
+ask_input() {
+
+}
+
+is_yes() {
+local __PARAM
+local __RET=1
+local __STRING="Do you want to continue" 
+[[ $# -ne 0 ]] && __STRING="$*"  
+YES=(Y y )
+echo "$__STRING (${YES[@]})"
+read __PARAM 
+for i in "${YES[@]}" ;
+do
+if [ "$i" == "$__PARAM" ]; 
+then 
+  #echo "$__PARAM found $i"
+  __RET=0
+  break 
+#else
+# echo "$__PARAM not found" 
+fi
+done 
+echo $__RET
+return $__RET
+}
+
+
 #Global vars
 export SILENT=0
 
@@ -114,32 +155,38 @@ do
 	LOCALUID=$(ls -ladn $i | awk '{print $3}')
 	LOCALGID=$(ls -ladn $i | awk '{print $4}')
 	USERNAME=$(basename $i)
+	if [ $(is_existing passwd $USERNAME) -eq 0 -o $(is_existing passwd $LOCALUID) -eq 0 ] ;
+	then
+		__print "User $USERNAME or UID  $LOCALUID already existing, Ignored"
+		continue	
+	fi  
 	if [ $LOCALGID -ne $LOCALGROUP ];
 	then
-		__print "Ignoring $USERNAME $LOCALUID $LOCALGID"
-	else
-		useradd -u $LOCALUID -g local -d /home/$USERNAME -s /bin/bash  $USERNAME 
-		ln -s /data/home/$USERNAME /home/$USERNAME
-		usermod -G admin pierre
+		__print "Warning User $USERNAME group ID is not $LOCALGID, continue ? (^C to quit)"
 	fi
-	if [ $USERNAME == "pierre" ] ; 
+	useradd -u $LOCALUID -g local -d /home/$USERNAME -s /bin/bash  $USERNAME 
+	ln -s /data/home/$USERNAME /home/$USERNAME
+	is_yes "Add $USERNAME in admin groups"
+	if [ $? -eq 0 ] ;
 	then
-	for i in $(echo $ALLGROUPS) ;
-	do
-	getent group $i > /dev/nul 2>&1 
-	if [ $? -eq 0 ]; 
-	then
-		__print "Add user pierre to $i group"
-		usermod -G $i pierre
-	fi
-	done
+		usermod -G admin $USERNAME
+		for i in $(echo $ADMGROUPS) ;
+		do
+			getent group $i > /dev/nul 2>&1 
+			if [ $? -eq 0 ]; 
+			then
+				__print "Add user pierre to $i group"
+				usermod -G $i $USERNAME
+			fi
+		done
 	fi
 done
 
-if [ ! -r /var/log/messages ] ;
+__TEST=$(stat --printf="%G\n" /var/log/messages)
+if [ ${__TEST:=NULL} != "admin" ] ;
 then
-	__print "warnign messages file is not readable"
-	__print "#destination messages { file("/var/log/messages" group("admin") perm(0640)); };"
+	__print "changing messages file group to admin"
+	__print "for syslog-ng :  destination messages { file("/var/log/messages" group("admin") perm(0640)); };"
 fi
 
 __print "Dont forget to update password"
