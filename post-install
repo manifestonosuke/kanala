@@ -232,7 +232,7 @@ do
 		STAT=$(stat --format=%F%N /home/$USERNAME)
 		__print "WARNING" "/home/$USERNAME is existing as $STAT"
 	else
-		ln -s /data/home/$USERNAME /home/$USERNAME
+		ln -s /data/home/$USERNAME /home/
 	fi
 	is_yes "Add $USERNAME in $ADMINGROUP groups"
 	if [ $? -eq 0 ] ;
