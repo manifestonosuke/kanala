@@ -2,22 +2,41 @@
 
 # This script is used for users sync after multi linux install on a single machine
 
+# Determine program name
+PRGDIR=`type $0 | awk '{print $3}'`
+PRGNAME=`basename $0`
+PRGNAME=`basename $0 |  awk -F '.' '{print $1}'`
+
+# Get absolute path name of the script
+PWD=`pwd`
+DIRNAME=`dirname $0| sed 's/^\.//'`
+LIB="$PWD/$DIRNAME"
+
+
 # Define here the default values 
 # Local group for shared users 
-LOCALGROUP=10000
+LOCALGROUP=local
+LOCALGROUPID=10000
 # This is the admin group GID
-ADMINGROUP=120
+ADMINGROUP=admin
+ADMINGID=120
 # This is all groups that are assigned by defaults for shared users
-ADMGROUPS="wheel vboxuser admin"
+ADMGROUPS="wheel vboxuser $ADMINGROUP"
 # User to sync 
 # For now just one is supported
 USERTOSYNC=
+# share data FS name (need to have home directory directly in root of this FS, it will be mounted as /$DATAFS and need $DATAFS as label
+DATAFS=data
+
+# Users generic env dir and files
+USERENVDIR=/data/env.d/ 
+USERBASHRC=$USERENVDIR/bashrc
 
 
 function check_user() {
 if [ ${USERTOSYNC:=NULL} == "NULL" ] ;
 then 
-	__print "USERTOSYNC not defined, exiting"
+	__print "ERROR" "USERTOSYNC not defined, exiting"
 	exit
 fi
 }
@@ -26,30 +45,44 @@ function confirm() {
 if [ $1 -ne 0 ]; 
 then 
 	shift
-	__print "$*" 
+	__print "INPUT" "$*" 
 	read __DUM
 fi
 }
 
 
 function check_first ()  {
-REZ=$(getent group admin)
+REZ=$(getent group $ADMINGROUP)
 if [ $? -ne 0 ] ;
 then
-	__print "admin group do not exit admin:$ADMINGROUP"
-fi
-REZ=$(__print $REZ | cut -d ':' -f 3)
-if [ ${REZ:=0} -ne $ADMINGROUP ];
-then
-	__print "admin group not id $REZ admin:$ADMINGROUP" 
+	__print "INFO" "$ADMINGROUP group do not exist $ADMINGROUP:$ADMINGID"
+else
+	REZ=$(echo $REZ | cut -d ':' -f 3)
+	if [ ${REZ:=0} -ne $ADMINGID ];
+	then
+		__print "ERROR" "$ADMINGROUP  should be $ADMINGID but is $REZ , exiting"  
+		exit 1
+	fi
 fi
 }
 
+# Print to std format, ignore output if SILENT env var is set to 1 
+# First arg is LABEL 
+# rest is message itself 
+# printf "%-10s %-10s %-22s %-30s \n" "INFO :" "umounting filesystem" "$i" 
 
 __print() {
+if [ ${PRGNAME:=NULL} == "NULL" ] ; 
+then
+	echo "ERROR __print function exiting"
+	exit 99
+fi
+local __label=$1 
+shift
 if [ ${SILENT:=0} -ne 1 ];
 then
-	echo $*
+	printf "%-10s %-10s %-22s %-30s \n" "$PRGNAME : " "$__label : " "$*" 
+	#echo $*
 fi
 }
 
@@ -57,15 +90,15 @@ amiroot() {
 CMD=/usr/bin/whoami
 if [ ! -x $CMD ];
 then
-	__print "cant get root status"
+	__print "ERROR" "cant get root status"
 	exit 1 
 else
 	__DUM=$(/usr/bin/whoami)
 	if [ ${__DUM:=NULL} == "root" ];
 	then
-		__print "You are root, continue"
+		__print "INFO"  "You are root, continue"
 	else
-		__print "Need to be root to run this"
+		__print "ERROR"  "Need to be root to run this"
 		exit 1
 	fi
 fi
@@ -81,20 +114,13 @@ echo $RET
 return $RET
 }
 
-# return 0 if param is yes 
-# return 1 else 
-# Yes can be as variables below 
-ask_input() {
-
-}
-
 is_yes() {
 local __PARAM
 local __RET=1
 local __STRING="Do you want to continue" 
 [[ $# -ne 0 ]] && __STRING="$*"  
 YES=(Y y )
-echo "$__STRING (${YES[@]})"
+__print "QUESTION"  "$__STRING (${YES[@]})"
 read __PARAM 
 for i in "${YES[@]}" ;
 do
@@ -107,8 +133,37 @@ then
 # echo "$__PARAM not found" 
 fi
 done 
-echo $__RET
+#echo $__RET
 return $__RET
+}
+
+build_datafs() { 
+local __this
+mount | egrep -w  /$DATAFS > /dev/null 2>&1 
+if [ $? -eq 0 ];
+then
+	__this=$(mount | egrep -w  /$DATAFS  | cut -f 1 -d ' ')	
+	__print "INFO"  "/$DATAFS mounted on $__this"
+	return 1 
+fi
+[[ ! -d /$DATAFS ]] && mkdir /$DATAFS
+egrep -w /$DATAFS /etc/fstab > /dev/null 2>&1
+__this=$(blkid -L $DATAFS) 
+if [ $? -ne 0 ];
+then
+	__print "ERROR"  "$DATAFS partition not found, create label like e2label partition data and run again"
+	exit 1
+fi
+
+__print "INFO"  -n "Adding /$DATAFS (device is $__this) filesystem to fstab ?"
+echo "$__this	/$DATAFS	ext4	defaults        0 2" >> /etc/fstab
+
+mount /$DATAFS 
+if [ $? -ne 0 ];
+then	
+	__print "ERROR"  "Error mounting $__this /$DATAFS"
+	exit 1
+fi
 }
 
 
@@ -118,36 +173,33 @@ export SILENT=0
 #main
 
 amiroot
-check_user
+#check_user
 check_first
+build_datafs
 
-df /data > /dev/null 2>&1 
-if [ $? -ne 0 ];
+if [ $(is_existing group $LOCALGROUP) -ne 0 ] ;
 then
-	__print -n "Adding /data filesystem (^C to exit) ?"
-	read dummy 
-	__print "/dev/sda4               /data           ext4    defaults        0 2" >> /etc/fstab
-	[[ ! -d /data ]] && mkdir /data
-	mount /data
-	if [ $? -ne 0];
+	__print "INFO"  "Creating group local"
+	groupadd -g $LOCALGROUPID $LOCALGROUP
+	confirm $? "Error creating $LOCALGROUP groupid $LOCALGROUPID"
+else 
+	if [ $(getent group $LOCALGROUP | cut -d ':' -f 3) -ne $LOCALGROUPID ] ;
 	then
-		__print "/data mount failed"
-		exit
+		__print "FATAL" "Group  $LOCALGROUP is not $LOCALGROUPID"
+		exit 1
 	fi
-else
-	__print "/data already mounted make sure mount is ok (any key to continue) "
-	read dummy
 fi
 
-__print "Creating group local"
-groupadd -g $LOCALGROUP local
-confirm $? "Error creating local group $LOCALGROUP"
-
-getent group admin > /dev/null
-if [ $? -ne 0 ] ;
+if [ $(is_existing group $ADMINGROUP) -eq 0 ] ;
 then
-	__print "creating admin ($ADMINGROUP) group"
-	groupadd -g $ADMINGROUP admin
+	__print "INFO"  "$ADMINGROUP:$ADMINGID group is existing"
+else
+	__print "INFO"  "creating $ADMINGROUP ($ADMINGID) group"
+	groupadd -g $ADMINGID $ADMINGROUP
+	if [ $? -ne 0 ] ;
+	then
+		__print "ERROR" "Fail to create admin group $ADMINGROUP:$ADMINGID"
+	fi
 fi
 
 for i in $(ls -d /data/home/*) ;
@@ -157,25 +209,41 @@ do
 	USERNAME=$(basename $i)
 	if [ $(is_existing passwd $USERNAME) -eq 0 -o $(is_existing passwd $LOCALUID) -eq 0 ] ;
 	then
-		__print "User $USERNAME or UID  $LOCALUID already existing, Ignored"
+		__print "INFO"  "User $USERNAME or UID  $LOCALUID already existing, Ignored"
 		continue	
 	fi  
-	if [ $LOCALGID -ne $LOCALGROUP ];
+	if [ $LOCALGID -ne $LOCALGROUPID ];
 	then
-		__print "Warning User $USERNAME group ID is not $LOCALGID, continue ? (^C to quit)"
+		__print "WARNING"  "User $USERNAME group ID is not $LOCALGID, continue ? (^C to quit)"
+		read DUMMY
 	fi
-	useradd -u $LOCALUID -g local -d /home/$USERNAME -s /bin/bash  $USERNAME 
-	ln -s /data/home/$USERNAME /home/$USERNAME
-	is_yes "Add $USERNAME in admin groups"
+	__print "INFO"  "Creating user $USERNAME"
+	useradd -u $LOCALUID -g local -d /home/$USERNAME -M -s /bin/bash  $USERNAME 
+	if [ $? -ne 0 ] ;
+	then
+		__print "ERROR" "Fail to create user $USERNAME:$LOCALUID"
+		__print "WARNING" "Jumping to next user"
+		continue
+	else
+		__print "WARNING"  "Dont forget to update $USERNAME user password"
+	fi
+	if [ -h /home/$USERNAME ]; 
+	then
+		STAT=$(stat --format=%F%N /home/$USERNAME)
+		__print "WARNING" "/home/$USERNAME is existing as $STAT"
+	else
+		ln -s /data/home/$USERNAME /home/$USERNAME
+	fi
+	is_yes "Add $USERNAME in $ADMINGROUP groups"
 	if [ $? -eq 0 ] ;
 	then
-		usermod -G admin $USERNAME
+		#usermod -G $ADMINGROUP $USERNAME
 		for i in $(echo $ADMGROUPS) ;
 		do
 			getent group $i > /dev/nul 2>&1 
 			if [ $? -eq 0 ]; 
 			then
-				__print "Add user pierre to $i group"
+				__print "INFO"  "Add user pierre to $i group"
 				usermod -G $i $USERNAME
 			fi
 		done
@@ -183,27 +251,33 @@ do
 done
 
 __TEST=$(stat --printf="%G\n" /var/log/messages)
-if [ ${__TEST:=NULL} != "admin" ] ;
+if [ ${__TEST:=NULL} != "$ADMINGROUP" ] ;
 then
-	__print "changing messages file group to admin"
-	__print "for syslog-ng :  destination messages { file("/var/log/messages" group("admin") perm(0640)); };"
+	__print "INFO"  "changing messages file group to $ADMINGROUP"
+	__print "INFO"  "for syslog-ng :  destination messages { file("/var/log/messages" group("admin") perm(0640)); };"
 fi
 
-__print "Dont forget to update password"
 
 # update root passwd 
-if [ ! ~/root/.bashrc ];
+__print "INFO"  "Updating root .bashrc"
+if [ ! /root/.bashrc ];
 then
-	touch ~/root/.bashrc
+	touch /root/.bashrc
 fi
-__print ". /data/local/env/bashrc.user" >> ~/.bashrc
 
-cat << fin > /root/.bashrc
-if [ -f /data/system/bashrc ] ;
+grep $USERBASHRC.root /root/.bashrc > /dev/null 2>&1 
+if [ $? -eq 0 ] ; 
 then
-        . /data/system/bashrc
-fi
+	__print "INFO"  "Reference to $USERBASHRC.root already exist"
+else
+	cat << fin >> /root/.bashrc
+	if [ -f $USERBASHRC.root ] ;
+	then
+        	. $USERBASHRC.root
+	fi
 fin
+
+fi
 
 # KDE desktop icon fix
 #chromium-browser-chromium.desktop
