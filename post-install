@@ -29,8 +29,23 @@ USERTOSYNC=
 DATAFS=data
 
 # Users generic env dir and files
-USERENVDIR=/data/env.d/ 
+USERENVDIR=/data/env.d 
 USERBASHRC=$USERENVDIR/bashrc
+
+function usage {
+cat << FIN
+Create common settings on machine after fresh install 
+usage : $PRGNAME
+        -d : run in debug mode
+
+Short explanations : 
+It needs a device with label data to be mounted as /data 
+/data/home dir will be linked to local /home 
+Users will be created with referenced id and standard group called local 
+admin group will be created and also admin user will receive $ADMGROUPS
+
+FIN
+}
 
 
 function check_user() {
@@ -170,6 +185,21 @@ fi
 #Global vars
 export SILENT=0
 
+# Getopts 
+
+while getopts dh sarg
+do
+case $sarg in
+        d)      set -x
+                DEBUG=1 ;;
+        h)      usage
+                end;;
+        *)      echo "ERROR : $PRGNAME : Bad option or misusage"
+                usage
+                end ;;
+esac
+done
+
 #main
 
 amiroot
@@ -271,10 +301,10 @@ then
 	__print "INFO"  "Reference to $USERBASHRC.root already exist"
 else
 	cat << fin >> /root/.bashrc
-	if [ -f $USERBASHRC.root ] ;
-	then
-        	. $USERBASHRC.root
-	fi
+if [ -f $USERBASHRC.root ] ;
+then
+       	. $USERBASHRC.root
+fi
 fin
 
 fi
