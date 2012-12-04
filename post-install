@@ -245,6 +245,8 @@ do
 			then
 				__print "INFO"  "Add user pierre to $i group"
 				usermod -G $i $USERNAME
+			else
+				__print "WARNING" "group $i not found"
 			fi
 		done
 	fi
