@@ -213,10 +213,23 @@ do
 done
 }
 
+# Check various parameters
+# To make sure vbox can be runned properly
+init_check(){
+lsmod | grep  $VBOXDRV > /dev/null 2>&1 
+if [ $? -ne 0 ] ;
+then
+	__print "ERROR" "$PRGNAME" "Module $VBOXDRV not loaded"
+	end 9
+fi
+USER=$(getent passwd $(id -u) | cut -d ':' -f1)
+check_user $USER $VBOXGROUP
+}
 
 unset LC_CTYPE
 unset LANG
 
+VBOXDRV=vboxdrv
 DEBUG=0
 TMPF1=/tmp/$PRGNAME.tmp
 TYPE="NONE"
@@ -227,8 +240,8 @@ TARGET=NULL
 VERBOSE=0
 VBOXGROUP=vboxusers
 
-USER=$(getent passwd $(id -u) | cut -d ':' -f1)
-check_user $USER $VBOXGROUP
+init_check
+exit
 
 if [ $# -eq 0 ] ;
 then
