@@ -26,7 +26,6 @@ trap 'trapfunc' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
 function trapfunc {
 printf "%-10s %-10s %-22s %-30s \n" "Info :" "$PRGNAME : " "Program aborted"
 end
-exit
 }
 
 function usage {
@@ -53,11 +52,12 @@ then
 else
         RET=0
 fi
-if [ -f {$TMPF1:=DUMMY.$$} ] ;
+#if [ -f {$TMPF1:=DUMMY} ] ;
+if [ -f $TMPF1 ] ;
 then
       rm $TMPF1
 fi
-        exit $RET
+exit $RET
 }
 
 function check_user() {
@@ -116,6 +116,12 @@ fi
 
 vbox_list_dry(){
 local __LIST=$(VBoxManage list vms  | awk '{print $1}'  |sed s/\"//g)
+local __LIST_COUNT=$(echo $__LIST  | wc -w)
+if [ $__LIST_COUNT -eq 0 ]; 
+then
+	__print "INFO" "$PRGNAME" "No VM found for user $USER"
+	end 0
+fi
 __LIST=$(echo $__LIST)
 if [ $? -ne 0 ];
 then
@@ -241,7 +247,6 @@ VERBOSE=0
 VBOXGROUP=vboxusers
 
 init_check
-exit
 
 if [ $# -eq 0 ] ;
 then
@@ -318,12 +323,17 @@ then
 	;; 
 	s)	nohup VBoxHeadless --startvm $TARGET > $TMPF1 2>&1 &
 		REZ=$?
-		[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not started" 
-		if [ $REZ -eq 0 -a $VERBOSE -ne 0 ] ;
+		sleep 5 
+		#[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not started" 
+		if [ $REZ -ne 0 ] ;
 		then 
 			__print   "INFO" "$PRGNAME" "$TARGET started, it may take some time to be ready" 
+		else
+			__print   "WARNING" "$PRGNAME" "startup of $TARGET return non zero code, probably failed log follow"	
+			sleep 5 
+			cat $TMPF1
 		fi 
-		end $?
+		end $REZ
 	;; 
 	O)	VBoxManage controlvm $TARGET acpipowerbutton 
 		REZ=$?
