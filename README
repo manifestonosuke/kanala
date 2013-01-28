@@ -22,3 +22,6 @@ As for now :
 4 - post-install 
 # This script is used for users sync after multi linux install on a single machine
 
+5 - syncOS.bash
+Wrapper to fsarchiver backup 
+Default is to backup all linux FS from sda, many options.
