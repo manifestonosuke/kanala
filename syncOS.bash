@@ -39,15 +39,15 @@ amiroot() {
 CMD=/usr/bin/whoami
 if [ ! -x $CMD ];
 then
-        __print "ERROR" "cant get root status"
+        __print "ERROR"  "$PRGNAME"  "cant get root status"
         exit 1
 else
         __DUM=$(/usr/bin/whoami)
         if [ ${__DUM:=NULL} == "root" ];
         then
-                __print "INFO"  "You are root, continue"
+                __print "INFO" "$PRGNAME"    "You are root, continue"
         else
-                __print "ERROR"  "Need to be root to run this"
+                __print "ERROR"   "$PRGNAME"  "Need to be root to run this"
                 exit 1
         fi
 fi
@@ -93,13 +93,12 @@ fin
 }
 
 	
-TARGETDIR=$(pwd)                                              |
+TARGETDIR=$(pwd)
 TARGETDISK=/dev/sda
 TARGETFSTYPE="ext4|ext3"
 FORCEMOUNT=0
 CREATEDESTDIR=0
 #   obsolete FSTYPE="ext4|ext3" 
-TARGETDISK=/dev/sda
 TARGETFSTYPE=ext4
 FORCEMOUNT=0
 CREATEDESTDIR=0
@@ -110,14 +109,6 @@ PROPFILE=ossync.prop
 ZIPLEVEL=1
 SOURCE=ALL
 
-# time fsarchiver savefs  -o /media/pierre/SaveLinux/OS/Sidux-sda7.fsa -v -j2 -z 1 /dev/sda7
-
-
-if [ ! -f  ./$PROPFILE ] ;
-then
-	__print "ERROR" "$PRGNAME" "file ./$PROPFILE not found, continue ?"
-	read dummy	
-fi
 
 while getopts dDF:hoSs:t:z sarg
 do
@@ -132,16 +123,27 @@ case $sarg in
 	q)	SILENT=1 ;;
 	s)	SOURCE=$OPTARG ;;
 	t)	TARGETDIR=$OPTARG ;;
-        h)      usage
-                end;;
-	o)	OVERWRITE=1 ;;
-	s)	SILENT=1 ;;
 	z)	ZIPLEVEL=$OPTARG;;
         *)      echo "ERROR : $PRGNAME : Bad option or misusage"
                 usage
                 end ;;
 esac
 done
+
+#### MAIN ##### 
+#amiroot 
+
+if [ ! -d ${TARGETDIR:=EMPTY} ] ;
+then
+	__print "ERROR" "$PRGNAME" "$TARGETDIR target directory not found"
+	end 9
+fi
+
+#if [ ! -f  ./$PROPFILE ] ;
+#then
+#	__print "ERROR" "$PRGNAME" "file ./$PROPFILE not found, continue ?"
+#	read dummy	
+#fi
 
 # Building target list 
 BASEARGS="-v -j2 -z $ZIPLEVEL"
@@ -179,39 +181,41 @@ else
 	fi
 fi
 
+
 #blkid -s TYPE  /dev/sda1  | cut -d = -f 2 | sed s/\"//g | grep -w ext4
+LIST=$(blkid -o device | grep ${TARGETDISK:=NONE})
+LIST=$(echo $LIST)
+FINALLIST=""
 
 # Checking if device is mounted
 for i in $(echo $LIST) ; 
 do
 	__DUMMY=$(blkid -s TYPE  $i  | cut -d = -f 2 | sed s/\"//g)
-	echo $__DUMMY | egrep -e $TARGETFSTYPE 
+	echo $__DUMMY | egrep -e $TARGETFSTYPE  > /dev/null 2>&1
 	if [ $? -eq 0 ]; 
-LIST=$(blkid -o device | grep ${TARGETDISK:=NONE})
-LIST=$(echo $LIST)
-FINALLIST=""
-
-__print "INFO" "$PRGNAME" "Disk list is $LIST"
-#blkid -s TYPE  /dev/sda1  | cut -d = -f 2 | sed s/\"//g | grep -w ext4
-for i in $(echo $LIST) ; 
-do
-	__DUMMY=$(blkid -s TYPE  $i  | cut -d = -f 2 | sed s/\"//g)
-	if [ ${__DUMMY:=NULL} == "$TARGETFSTYPE" ]; 
-	then
-		cat /proc/mounts | grep -w $i > /dev/null 2>&1  
-		if [ $? -eq 0 ] ; 
-		then 
-			__print "ERROR" "$PRGNAME" "Disk $i is $TARGETFSTYPE BUT mounted" 
-			__print "WARNING" "$PRGNAME" "Disk $i is $TARGETFSTYPE BUT mounted" 
-		else
-			__print "INFO" "$PRGNAME" "Disk $i is $TARGETFSTYPE" 	
-			FINALLIST=$(echo $FINALLIST $i)
-		fi
-	else
-		__print "ERROR" "$PRGNAME" "Disk is not proper FStype $TARGETFSTYPE"
-		end 2
-	fi
+        then
+                cat /proc/mounts | grep -w $i > /dev/null 2>&1
+                if [ $? -eq 0 ] ;
+                then
+                        __print "WARNING" "$PRGNAME" "SKIPPING mounted partition $i"
+                else
+                        __print "INFO" "$PRGNAME" "ADDED $__DUMMY Partition $i "
+                        FINALLIST=$(echo $FINALLIST $i)
+                fi
+        else
+                __print "WARNING" "$PRGNAME" "SKIPPING $__DUMMY Partition $i is not proper FStype $FSTYPE"
+        fi
 done
+	
+if [ "A$FINALLIST" == "A" ] ; 
+then
+                __print "INFO" "$PRGNAME" "No partition found in $LIST"
+		exit 0
+fi
+
+__print "INFO" "$PRGNAME" "Disk list is $FINALLIST"
+#blkid -s TYPE  /dev/sda1  | cut -d = -f 2 | sed s/\"//g | grep -w ext4
+
 
 for i in $(echo $FINALLIST) ; 
 do	
