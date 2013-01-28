@@ -71,23 +71,16 @@ exit $RET
 
 usage() {
 cat << fin
-$PRGNAME [-o] [-s] [ -D devide] [ -F <FSTYPE> ] -o -q [ -s /dev/devicename OR LABEL ] 
-Backup file sytem using fsarchiver for default device $TARGETDISK
+$PRGNAME [-o] [-s] [ -F <FSTYPE> ] -o -q [ -s /dev/devicename OR LABEL ] 
+Backup file sytem using fsarchiver, default is to backup all partition of $TARGETFSTYPE which are not mounted 
 	-d	debug mode
-	-D	Change target disk  to archive to
+	-D	Default targeti disk ($TARGETDISK) to backup 
 	-F	Filesytem type for the source device (by default just work for ext4)
 	-h	This page 
 	-o	Force overwrite when file exist
 	-q	Silent mode (to be done)
 	-s	source parition or label (only one and must be /dev/sd... or parition name as seen with blkid) to be backedup
 	-t 	Target dir to write output file (if not specified $(pwd))
-$PRGNAME [-o] [-s] [ -D devide]
-Backup file sytem using fsarchiver for default device $TARGETDISK
-	-d	debug mode
-	-D	Change target disk 
-	-h	This page 
-	-o	Force overwrite when file exist
-	-s	Silent mode (to be done)
 	-z	Compression level (as for fsarchiver)
 fin
 }
@@ -149,8 +142,9 @@ fi
 BASEARGS="-v -j2 -z $ZIPLEVEL"
 if [ ${SOURCE:=NULL} == "ALL" ] ; 
 then
-	#LIST=$(blkid -o device | grep ${TARGETDISK:=NONE})
-	LIST=$(blkid -o device) 
+	#LIST=$(blkid -o device) 
+	#blkid -s TYPE  /dev/sda1  | cut -d = -f 2 | sed s/\"//g | grep -w ext4
+	LIST=$(blkid -o device | grep ${TARGETDISK:=NONE})
 	LIST=$(echo $LIST)
 	FINALLIST=""
 
@@ -181,12 +175,6 @@ else
 	fi
 fi
 
-
-#blkid -s TYPE  /dev/sda1  | cut -d = -f 2 | sed s/\"//g | grep -w ext4
-LIST=$(blkid -o device | grep ${TARGETDISK:=NONE})
-LIST=$(echo $LIST)
-FINALLIST=""
-
 # Checking if device is mounted
 for i in $(echo $LIST) ; 
 do
@@ -203,7 +191,7 @@ do
                         FINALLIST=$(echo $FINALLIST $i)
                 fi
         else
-                __print "WARNING" "$PRGNAME" "SKIPPING $__DUMMY Partition $i is not proper FStype $FSTYPE"
+                __print "WARNING" "$PRGNAME" "SKIPPING $__DUMMY Partition $i is not proper FStype"
         fi
 done
 	
