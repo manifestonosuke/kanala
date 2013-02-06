@@ -274,7 +274,7 @@ do
 			if [ $? -eq 0 ]; 
 			then
 				__print "INFO"  "Add user pierre to $i group"
-				usermod -G $i $USERNAME
+				usermod -a -G $i $USERNAME
 			else
 				__print "WARNING" "group $i not found"
 			fi
@@ -311,13 +311,23 @@ fin
 
 fi
 
+
 # KDE desktop icon fix
 # chromium-browser-chromium.desktop
 # firefox thunderbird 
 # git
 # ncftp
 # skrooge keepassx
-# ibus stuff 
+# ibus anthy 
 # firefox/iceweasel ... 
 # utiliser puppet ?? 
 # fsarchiver
+
+PKGGET=urpmi 
+PKGCHK=urpmq --fuzzy
+
+# Application 
+APP="skrooge keepassx chromium-browser vlc"
+SYS="git ncftp fsarchiver"
+LANG="ibus anthy"
+OTHER="fonts ubuntu"

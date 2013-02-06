@@ -68,6 +68,33 @@ fi
 exit $RET
 }
 
+# Save mbr /part to tune
+partsave() {
+__TARGET=$1  
+if [ ! -b $__TARGET ] ; 
+then
+	__print "ERROR" "$PRGNAME" "$__TARGET disk not found"
+	end 10
+fi
+
+__DATE=$(date '+%Y%m%d') 
+OUT1=$__TARGET.mbr.dd-backup.$__DATE
+OUT2=$__TARGET.sfdisk.backup.$__DATE
+local i=0 ; 
+for i in [ $OUT1 $OUT2 ]; 
+do
+	if [ -f $i ];
+	then
+		__print "WARNING" "$PRGNAME" "$i file exist, continue"
+		read __DUMMY
+	fi
+done
+__print "INFO" "$PRGNAME" "Creating $OUT1"
+dd if=$__TARGET of=$OUT1 bs=512 count=1
+__print "INFO" "$PRGNAME" "Creating $OUT2"
+sfdisk -d $__TARGET > $OUT2
+}
+
 
 usage() {
 cat << fin
@@ -78,6 +105,7 @@ Backup file sytem using fsarchiver, default is to backup all partition of $TARGE
 	-F	Filesytem type for the source device (by default just work for ext4)
 	-h	This page 
 	-o	Force overwrite when file exist
+	-P	Save the MBR and partition table
 	-q	Silent mode (to be done)
 	-s	source parition or label (only one and must be /dev/sd... or parition name as seen with blkid) to be backedup
 	-t 	Target dir to write output file (if not specified $(pwd))
@@ -101,9 +129,9 @@ OVERWRITE=0
 PROPFILE=ossync.prop
 ZIPLEVEL=1
 SOURCE=ALL
+PARTSAVE=0
 
-
-while getopts dDF:hoSs:t:z sarg
+while getopts dDF:hoPSs:t:z sarg
 do
 case $sarg in
         d)      set -x
@@ -114,6 +142,7 @@ case $sarg in
                 end;;
 	o)	OVERWRITE=1 ;;
 	q)	SILENT=1 ;;
+	P)	PARTSAVE=1 ;; 
 	s)	SOURCE=$OPTARG ;;
 	t)	TARGETDIR=$OPTARG ;;
 	z)	ZIPLEVEL=$OPTARG;;
@@ -125,6 +154,12 @@ done
 
 #### MAIN ##### 
 #amiroot 
+
+
+if [ ${PARTSAVE:=0} -eq 1 ] ;
+then
+	partsave $TARGETDISK 
+fi
 
 if [ ! -d ${TARGETDIR:=EMPTY} ] ;
 then
