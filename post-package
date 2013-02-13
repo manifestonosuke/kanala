@@ -1,0 +1,276 @@
+#!/bin/bash
+
+# This script is used for users sync after multi linux install on a single machine
+
+# Determine program name
+PRGDIR=`type $0 | awk '{print $3}'`
+PRGNAME=`basename $0`
+PRGNAME=`basename $0 |  awk -F '.' '{print $1}'`
+
+# Get absolute path name of the script
+PWD=`pwd`
+DIRNAME=`dirname $0| sed 's/^\.//'`
+LIB="$PWD/$DIRNAME"
+
+
+# Define here the default values 
+# Local group for shared users 
+LOCALGROUP=local
+LOCALGROUPID=10000
+# This is the admin group GID
+ADMINGROUP=admin
+ADMINGID=120
+# This is all groups that are assigned by defaults for shared users
+ADMGROUPS="wheel vboxuser kvm $ADMINGROUP"
+# User to sync 
+# For now just one is supported
+USERTOSYNC=
+# share data FS name (need to have home directory directly in root of this FS, it will be mounted as /$DATAFS and need $DATAFS as label
+DATAFS=data
+
+# Users generic env dir and files
+USERENVDIR=/data/env.d 
+USERBASHRC=$USERENVDIR/bashrc
+
+function usage {
+cat << FIN
+Create common settings on machine after fresh install 
+usage : $PRGNAME
+        -d : run in debug mode
+
+Short explanations : 
+It needs a device with label data to be mounted as /data 
+/data/home dir will be linked to local /home 
+Users will be created with referenced id and standard group called local 
+admin group will be created and also admin user will receive $ADMGROUPS
+
+FIN
+}
+
+
+function check_user() {
+if [ ${USERTOSYNC:=NULL} == "NULL" ] ;
+then 
+	__print "ERROR" "USERTOSYNC not defined, exiting"
+	exit
+fi
+}
+
+function confirm() {
+if [ $1 -ne 0 ]; 
+then 
+	shift
+	__print "INPUT" "$*" 
+	read __DUM
+fi
+}
+
+
+function check_first ()  {
+REZ=$(getent group $ADMINGROUP)
+if [ $? -ne 0 ] ;
+then
+	__print "INFO" "$ADMINGROUP group do not exist $ADMINGROUP:$ADMINGID"
+else
+	REZ=$(echo $REZ | cut -d ':' -f 3)
+	if [ ${REZ:=0} -ne $ADMINGID ];
+	then
+		__print "ERROR" "$ADMINGROUP  should be $ADMINGID but is $REZ , exiting"  
+		exit 1
+	fi
+fi
+}
+
+# Print to std format, ignore output if SILENT env var is set to 1 
+# First arg is LABEL 
+# rest is message itself 
+# printf "%-10s %-10s %-22s %-30s \n" "INFO :" "umounting filesystem" "$i" 
+
+__print() {
+if [ ${PRGNAME:=NULL} == "NULL" ] ; 
+then
+	echo "ERROR __print function exiting"
+	exit 99
+fi
+local __label=$1 
+shift
+if [ ${SILENT:=0} -ne 1 ];
+then
+	printf "%-10s %-10s %-22s %-30s \n" "$PRGNAME : " "$__label : " "$*" 
+	#echo $*
+fi
+}
+
+amiroot() {
+CMD=/usr/bin/whoami
+if [ ! -x $CMD ];
+then
+	__print "ERROR" "cant get root status"
+	exit 1 
+else
+	__DUM=$(/usr/bin/whoami)
+	if [ ${__DUM:=NULL} == "root" ];
+	then
+		__print "INFO"  "You are root, continue"
+	else
+		__print "ERROR"  "Need to be root to run this"
+		exit 1
+	fi
+fi
+}
+
+is_existing() {
+local __SOURCE=$1 
+shift
+local __PARAM=$*
+getent $__SOURCE $__PARAM > /dev/null 2>&1
+RET=$?
+echo $RET
+return $RET
+}
+
+is_yes() {
+local __PARAM
+local __RET=1
+local __STRING="Do you want to continue" 
+[[ $# -ne 0 ]] && __STRING="$*"  
+YES=(Y y )
+__print "QUESTION"  "$__STRING (${YES[@]})"
+read __PARAM 
+for i in "${YES[@]}" ;
+do
+if [ "$i" == "$__PARAM" ]; 
+then 
+  #echo "$__PARAM found $i"
+  __RET=0
+  break 
+#else
+# echo "$__PARAM not found" 
+fi
+done 
+#echo $__RET
+return $__RET
+}
+
+build_datafs() { 
+local __this
+mount | egrep -w  /$DATAFS > /dev/null 2>&1 
+if [ $? -eq 0 ];
+then
+	__this=$(mount | egrep -w  /$DATAFS  | cut -f 1 -d ' ')	
+	__print "INFO"  "/$DATAFS mounted on $__this"
+	return 1 
+fi
+[[ ! -d /$DATAFS ]] && mkdir /$DATAFS
+egrep -w /$DATAFS /etc/fstab > /dev/null 2>&1
+__this=$(blkid -L $DATAFS) 
+if [ $? -ne 0 ];
+then
+	__print "ERROR"  "$DATAFS partition not found, create label like e2label partition data and run again"
+	exit 1
+fi
+
+__print "INFO"  -n "Adding /$DATAFS (device is $__this) filesystem to fstab ?"
+echo "$__this	/$DATAFS	ext4	defaults        0 2" >> /etc/fstab
+
+mount /$DATAFS 
+if [ $? -ne 0 ];
+then	
+	__print "ERROR"  "Error mounting $__this /$DATAFS"
+	exit 1
+fi
+}
+
+
+#Global vars
+export SILENT=0
+
+# Getopts 
+
+while getopts dh sarg
+do
+case $sarg in
+        d)      set -x
+                DEBUG=1 ;;
+        h)      usage
+                end;;
+        *)      echo "ERROR : $PRGNAME : Bad option or misusage"
+                usage
+                end ;;
+esac
+done
+
+#main
+
+amiroot
+#check_user
+
+# chromium-browser-chromium.desktop
+# firefox thunderbird 
+# git
+# ncftp
+# skrooge keepassx
+# ibus anthy 
+# firefox/iceweasel ... 
+# utiliser puppet ?? 
+# fsarchiver
+
+PKGGET="urpmi" 
+PKGCHK="urpmq --fuzzy"
+
+
+
+# Package installation automation 
+function pkgcmd {
+CHECKLIST="apt-get yum equo urpmi"
+CMDLIST=""
+i=0 
+for cmd in $(echo $CHECKLIST); 
+do
+which $cmd > /dev/null 2>&1
+if [ $? -eq 0 ];
+then
+	i=$((i + 1))
+	CMDLIST="$CMDLIST $cmd"
+fi
+if [ $i -eq 1 ];
+then
+	__print "INFO" "Package manager is $CMDLIST"
+fi
+done
+}
+
+declare -a PKGTYPE=(apt-get yum emerge)
+declare -a PKGUPD=("apt-get update" "yum update"  "emerge --sync")
+declare -a PKGUPD=("apt-get upgrade" "yum"  "emerge -uNqa")
+#echo ${PKGTYPE[1]} 
+
+
+# Application 
+APP="skrooge keepassx chromium-browser vlc rekonq"
+SYS="git ncftp fsarchiver"
+LANG="ibus anthy"
+OTHER="ttf-ubuntu-font-family"
+
+PKGUPD="apt-get update"
+PKGUPG="apt-get upgrade"
+PKGADD="apt-get install" 
+declare -a PK=("APP" "SYS" "LANG" "OTHER")
+PKNB=${#PK[@]}
+
+__print "INFO" "Updating package database"
+eval $PKGUPD
+LIST=""
+for i in ${PK[@]}
+do
+	LIST="$LIST ${!i}"
+	#eval $PKGUPD
+	#echo $PKGUPD
+done
+
+
+for this in $LIST ;
+do
+	__print "INFO" "Try to add $this"
+	$PKGADD $this
+done
