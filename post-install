@@ -312,22 +312,3 @@ fin
 fi
 
 
-# KDE desktop icon fix
-# chromium-browser-chromium.desktop
-# firefox thunderbird 
-# git
-# ncftp
-# skrooge keepassx
-# ibus anthy 
-# firefox/iceweasel ... 
-# utiliser puppet ?? 
-# fsarchiver
-
-PKGGET=urpmi 
-PKGCHK=urpmq --fuzzy
-
-# Application 
-APP="skrooge keepassx chromium-browser vlc"
-SYS="git ncftp fsarchiver"
-LANG="ibus anthy"
-OTHER="fonts ubuntu"

@@ -25,3 +25,7 @@ As for now :
 5 - syncOS.bash
 Wrapper to fsarchiver backup 
 Default is to backup all linux FS from sda, many options.
+
+6 - post-package 
+Friend of post-install that install usual packages with various package utilities
+Still very new and not finished
