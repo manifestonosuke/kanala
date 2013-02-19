@@ -240,11 +240,37 @@ fi
 done
 }
 
-declare -a PKGTYPE=(apt-get yum emerge)
-declare -a PKGUPD=("apt-get update" "yum update"  "emerge --sync")
-declare -a PKGUPD=("apt-get upgrade" "yum"  "emerge -uNqa")
+
+
+
+
+findfamilly() {
+local FTEST="dpkg urpmq yum zypper"
+local FAMILY="debian mandriva redhat zypper"
+
+local FOUND=0
+#declare -a FAMILY=('dmkg' 'urpmq' 'yum' 'zypper')
+declare -A asso
+asso=([dpkg]=debian [urpmq]=mandriva [yum]=redhat [zypper]=suse)
+
+for i in $(echo $FTEST) ;
+do
+	which $i > /dev/null 2>&1 
+	if [ $? -eq 0 ]; 
+	then
+		echo ${asso[$i]}
+		FOUND=1
+	fi
+done
+
+}
+
 #echo ${PKGTYPE[1]} 
 
+declare -a cmddebian=('dpkg -l' 'apt-cache search' 'apt-get update' 'apt-get upgrade')
+declare -a cmdredhat=('rpm -ql' 'yum search' 'yum update' 'yum upgrade')
+declare -a cmdsuse=('rpm -ql' 'zypper se' 'zypper up' 'zypper up')
+declare -a cmdmandriva=('uprmq' 'urpmq --fuzzy' 'urpmi -a' 'urmpi --auto-select')
 
 # Application 
 APP="skrooge keepassx chromium-browser vlc rekonq"
@@ -252,14 +278,21 @@ SYS="git ncftp fsarchiver"
 LANG="ibus anthy"
 OTHER="ttf-ubuntu-font-family"
 
-PKGUPD="apt-get update"
-PKGUPG="apt-get upgrade"
-PKGADD="apt-get install" 
+THIS=$(findfamilly)
+echo "Familly is $THIS"
+
+declare -A PKIN PKSE PKUP PKUG
+PKIN=([debian]="dpkg -l" [redhat]="rpm -q" [suse]="rpm -q" [mandriva]="urpmq")
+PKSE=([debian]="apt-cache search" [redhat]="yum search" [suse]="yum search" [mandriva]="urpmq --fuzzy")
+PKUP=([debian]="apt-get update" [redhat]="yum update" [suse]="zypper up" [mandriva]="urpmi -a")
+PKUG=([debian]="apt-get upgrade" [redhat]="yum upgrade" [suse]="zypper up" [mandriva]="urpmi --auto-select")
+
 declare -a PK=("APP" "SYS" "LANG" "OTHER")
 PKNB=${#PK[@]}
 
 __print "INFO" "Updating package database"
 eval $PKGUPD
+
 LIST=""
 for i in ${PK[@]}
 do
@@ -271,6 +304,8 @@ done
 
 for this in $LIST ;
 do
-	__print "INFO" "Try to add $this"
-	$PKGADD $this
+	DUMMY="${PKSE[$THIS]} $this"
+	#__print "INFO" "searching $this"
+	__print "INFO" "searching $DUMMY"
+	eval $DUMMY
 done

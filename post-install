@@ -1,5 +1,13 @@
 #!/bin/bash
 
+### TODO 
+## == ## check user wheel/sudo 
+## == ## Add optionnal packages before running this post install 
+## == ## Better check group adm/admin and generally group to add 
+## == ## Check -a option from usermod that may be -A on some linux version 
+
+
+
 # This script is used for users sync after multi linux install on a single machine
 
 # Determine program name
