@@ -245,13 +245,13 @@ done
 
 
 findfamilly() {
-local FTEST="dpkg urpmq yum zypper"
+local FTEST="dpkg urpmq yum zypper emerge"
 local FAMILY="debian mandriva redhat zypper"
 
 local FOUND=0
 #declare -a FAMILY=('dmkg' 'urpmq' 'yum' 'zypper')
 declare -A asso
-asso=([dpkg]=debian [urpmq]=mandriva [yum]=redhat [zypper]=suse)
+asso=([dpkg]=debian [urpmq]=mandriva [yum]=redhat [zypper]=suse [emerge]=gentoo)
 
 for i in $(echo $FTEST) ;
 do
@@ -262,24 +262,42 @@ do
 		FOUND=1
 	fi
 done
-
 }
 
 #echo ${PKGTYPE[1]} 
 
-declare -a cmddebian=('dpkg -l' 'apt-cache search' 'apt-get update' 'apt-get upgrade')
-declare -a cmdredhat=('rpm -ql' 'yum search' 'yum update' 'yum upgrade')
-declare -a cmdsuse=('rpm -ql' 'zypper se' 'zypper up' 'zypper up')
-declare -a cmdmandriva=('uprmq' 'urpmq --fuzzy' 'urpmi -a' 'urmpi --auto-select')
+declare -a cmddebian=('dpkg -l' 'apt-cache search' 'apt-get update' 'apt-get upgrade' 'apt-get install')
+declare -a cmdredhat=('rpm -ql' 'yum search' 'yum update' 'yum upgrade' 'yum install')
+declare -a cmdsuse=('rpm -ql' 'zypper se' 'zypper up' 'zypper up' 'zypper in')
+declare -a cmdmandriva=('uprmq' 'urpmq --fuzzy' 'urpmi -a' 'urmpi --auto-select' 'urpmi')
+declare -a cmdgentoo=('equery f' 'eix' 'eix-sync' 'emerge -uNa' 'emerge -av')
 
 # Application 
+#APP="skrooge keepassx chromium-browser|chromium vlc rekonq"
 APP="skrooge keepassx chromium-browser vlc rekonq"
-SYS="git ncftp fsarchiver"
-LANG="ibus anthy"
+SYS="git ncftp fsarchiver bumblebee"
+LANG="ibus ibus-anthy"
 OTHER="ttf-ubuntu-font-family"
 
 THIS=$(findfamilly)
-echo "Familly is $THIS"
+if [ ${THIS:=NULL} == 'NULL' ];
+then
+        echo 'no family'
+	exit
+else    
+        echo "Familly is $THIS"
+fi
+
+case $THIS in 
+	debian)	cmd=('dpkg -l' 'apt-cache search' 'apt-get update' 'apt-get upgrade' 'apt-get install') ;;
+	redhat) cmd=('rpm -ql' 'yum search' 'yum update' 'yum upgrade' 'yum install') ;;
+	suse)	cmd=('rpm -ql' 'zypper se' 'zypper up' 'zypper up' 'zypper in') ;;
+	mandriva)	cmd=('uprmq' 'urpmq --fuzzy' 'urpmi -a' 'urmpi --auto-select' 'urpmi') ;;
+	gentoo)	cmd=('equery f' 'eix -e' 'eix-sync' 'emerge -uNa' 'emerge -av') ;;
+	*)	echo "family not up to date"
+		exit ;;
+esac
+
 
 declare -A PKIN PKSE PKUP PKUG
 PKIN=([debian]="dpkg -l" [redhat]="rpm -q" [suse]="rpm -q" [mandriva]="urpmq")
@@ -297,15 +315,16 @@ LIST=""
 for i in ${PK[@]}
 do
 	LIST="$LIST ${!i}"
+	echo $LIST
 	#eval $PKGUPD
 	#echo $PKGUPD
 done
 
-
-for this in $LIST ;
+for PKG in $LIST ;
 do
-	DUMMY="${PKSE[$THIS]} $this"
-	#__print "INFO" "searching $this"
-	__print "INFO" "searching $DUMMY"
-	eval $DUMMY
+	THIS=${cmd[1]}
+	###DUMMY="${PKSE[$THIS]} $PKG"
+	#__print "INFO" "searching $PKG"
+	__print "INFO" "searching $THIS $PKG"
+	#eval $DUMMY
 done
