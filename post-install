@@ -29,7 +29,7 @@ LOCALGROUPID=10000
 ADMINGROUP=admin
 ADMINGID=120
 # This is all groups that are assigned by defaults for shared users
-ADMGROUPS="wheel vboxuser kvm $ADMINGROUP"
+ADMGROUPS="adm wheel vboxuser kvm $ADMINGROUP"
 # User to sync 
 # For now just one is supported
 USERTOSYNC=

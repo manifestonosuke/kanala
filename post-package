@@ -245,8 +245,8 @@ done
 
 
 findfamilly() {
-local FTEST="dpkg urpmq yum zypper emerge"
-local FAMILY="debian mandriva redhat zypper"
+local FTEST="dpkg urpmq yum zypper emerge equo"
+local FAMILY="debian mandriva redhat zypper gentoo sabayon"
 
 local FOUND=0
 #declare -a FAMILY=('dmkg' 'urpmq' 'yum' 'zypper')
@@ -258,10 +258,38 @@ do
 	which $i > /dev/null 2>&1 
 	if [ $? -eq 0 ]; 
 	then
-		echo ${asso[$i]}
+		GUESS=${asso[$i]}
 		FOUND=1
 	fi
 done
+
+case $GUESS in  
+        debian) grep 'DISTRIB_ID=Ubuntu' etc/lsb-release 
+		if [ $? -eq 0 ]; 
+		then
+			GUESS=ubuntu:debian
+		fi ;;
+        redhat) ;;
+        suse)   ;;
+        mandriva)     if [ -f etc/rosa-release ];
+			then
+				GUESS=rosa:mandriva
+			fi  
+		;;
+        gentoo)
+		if [ -d /etc/calculate ];
+		then
+			GUESS=calculate:gentoo
+		fi
+		if [ -f /etc/sabayon-release ];
+		then
+			GUESS=sabayon:gentoo
+		fi ;;
+        *)      echo "family not up to date"
+                exit ;;
+esac
+echo $GUESS
+
 }
 
 #echo ${PKGTYPE[1]} 
@@ -288,12 +316,21 @@ else
         echo "Familly is $THIS"
 fi
 
-case $THIS in 
+echo $THIS | grep ':' > /dev/null 2>&1 
+if [ $? -eq 0 ] ;
+then
+	THIS2=$(echo $THIS | cut -d ':' -f 1)
+else
+	THIS2=$THIS
+fi 
+case $THIS2 in 
 	debian)	cmd=('dpkg -l' 'apt-cache search' 'apt-get update' 'apt-get upgrade' 'apt-get install') ;;
 	redhat) cmd=('rpm -ql' 'yum search' 'yum update' 'yum upgrade' 'yum install') ;;
 	suse)	cmd=('rpm -ql' 'zypper se' 'zypper up' 'zypper up' 'zypper in') ;;
 	mandriva)	cmd=('uprmq' 'urpmq --fuzzy' 'urpmi -a' 'urmpi --auto-select' 'urpmi') ;;
 	gentoo)	cmd=('equery f' 'eix -e' 'eix-sync' 'emerge -uNa' 'emerge -av') ;;
+	calculate)	cmd=('equery f' 'eix -e' 'eix-sync' 'emerge -uNa' 'emerge -av') ;;
+	sabayon)	cmd=('equo query installed' 'equo search' 'equo update' 'equo update' 'equo install') ;;
 	*)	echo "family not up to date"
 		exit ;;
 esac
