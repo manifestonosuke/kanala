@@ -12,23 +12,45 @@ PRGNAME=`basename $0 |  awk -F '.' '{print $1}'`
 
 
 __print() {
-# If 1st Param (level) is set to verbose it means that msg will display only in verbose mode 
+# If 1st Param (__MODE__) is set to verbose it means that msg will display only in verbose mode 
 # The displayed level will be info. Verbose mode is set by program VERBOSE var
+# SILENT mode says that this can be ignored if silent, defined by global var silent 
+local __MODE=$1 
+
+case ${__MODE:=NULL}  in 
+	VERBOSE) shift ;;
+	SILENT)  shift ;;
+	*)	__MODE=NORMAL ;;
+esac
+
+#echo "mode is $__MODE"
+
 if [ $# -lt 3 ];
 then
         printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "Error Calling function __print"
 fi
+#if [ "$__MODE" == "SILENT" ] ; 
+#then
+#	return 0
+#fi
 local __LEVEL=$1
 shift
 local __INFO=$1
 shift
 local __MSG="$*"
-if [ $__LEVEL == "VERBOSE" ] ;
+if [ $__MODE == "NORMAL" ]; 
+then
+	printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
+	return 0
+fi
+if [ $__MODE == "VERBOSE" ] ;
 then
         [[ $VERBOSE -eq 1 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "INFO :" "$__INFO : " "$__MSG"
         return 0
-else
-        if [ ${SILENT:=0} -ne 1 ];
+fi
+if [ $__MODE == "SILENT" ] ;
+then
+	if [ ${SILENT:=0} -ne 1 ];
         then
                 printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
         fi
@@ -98,8 +120,9 @@ sfdisk -d $__TARGET > $OUT2
 
 usage() {
 cat << fin
-$PRGNAME [-o] [-s] [ -F <FSTYPE> ] -o -q [ -s /dev/devicename OR LABEL ] 
+$PRGNAME [-o] [-q] [ -F <FSTYPE> ] [ -t target dump dir ]  [ /dev/devicename OR LABEL ] || [-A] 
 Backup file sytem using fsarchiver, default is to backup all partition of $TARGETFSTYPE which are not mounted 
+	-A	Do all parition but mounted one backup
 	-d	debug mode
 	-D	Default targeti disk ($TARGETDISK) to backup 
 	-F	Filesytem type for the source device (by default just work for ext4)
@@ -107,7 +130,6 @@ Backup file sytem using fsarchiver, default is to backup all partition of $TARGE
 	-o	Force overwrite when file exist
 	-P	Save the MBR and partition table
 	-q	Silent mode (to be done)
-	-s	source parition or label (only one and must be /dev/sd... or parition name as seen with blkid) to be backedup
 	-t 	Target dir to write output file (if not specified $(pwd))
 	-z	Compression level (as for fsarchiver)
 fin
@@ -128,12 +150,14 @@ SILENT=0
 OVERWRITE=0
 PROPFILE=ossync.prop
 ZIPLEVEL=1
-SOURCE=ALL
+SOURCE=__NONE__
 PARTSAVE=0
+ALL=0 
 
-while getopts dDF:hoPSs:t:z sarg
+while getopts AdDF:hoqPt:z sarg
 do
 case $sarg in
+	A)	ALL=1 ;;
         d)      set -x
                 DEBUG=1 ;;
 	D)	TARGETDISK=$OPTARG;; 
@@ -143,7 +167,6 @@ case $sarg in
 	o)	OVERWRITE=1 ;;
 	q)	SILENT=1 ;;
 	P)	PARTSAVE=1 ;; 
-	s)	SOURCE=$OPTARG ;;
 	t)	TARGETDIR=$OPTARG ;;
 	z)	ZIPLEVEL=$OPTARG;;
         *)      echo "ERROR : $PRGNAME : Bad option or misusage"
@@ -152,6 +175,33 @@ case $sarg in
 esac
 done
 
+shift $(( $OPTIND - 1))
+#echo "index $INDEX:$OPTIND"
+#echo "::$#:$*:$ALL:$SOURCE:"
+# We are set now to have in $* remaining params 
+if [ $# -gt 0 ]; 
+then
+	SOURCE="$*" 
+fi
+
+if [ $ALL -eq 1 -a "$SOURCE" != "__NONE__" ] ;
+then
+	__print "ERROR" "$PRGNAME" "Parameter error please use -A OR specify devices"
+	end 0
+fi
+if [ $ALL -eq 0 -a "$SOURCE" == "__NONE__" ] ;
+then
+	__print "ERROR" "$PRGNAME" "No target defined (-A or device list)"
+	end 0
+fi
+
+if [ $ALL -ne 1 ];
+then
+	__print "INFO" "$PRGNAME" "Preparing  to dump $SOURCE "	
+else
+	__print "INFO" "$PRGNAME" "Preparing  to dump all appropriate device on $TARGETDISK "	
+	SOURCE=ALL
+fi
 #### MAIN ##### 
 #amiroot 
 
@@ -160,6 +210,8 @@ if [ ${PARTSAVE:=0} -eq 1 ] ;
 then
 	partsave $TARGETDISK 
 fi
+	
+#SOURCE=$OPTARG ;;
 
 if [ ! -d ${TARGETDIR:=EMPTY} ] ;
 then
