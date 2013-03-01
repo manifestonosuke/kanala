@@ -48,14 +48,6 @@ FIN
 }
 
 
-function check_user() {
-if [ ${USERTOSYNC:=NULL} == "NULL" ] ;
-then 
-	__print "ERROR" "USERTOSYNC not defined, exiting"
-	exit
-fi
-}
-
 function confirm() {
 if [ $1 -ne 0 ]; 
 then 
@@ -65,21 +57,6 @@ then
 fi
 }
 
-
-function check_first ()  {
-REZ=$(getent group $ADMINGROUP)
-if [ $? -ne 0 ] ;
-then
-	__print "INFO" "$ADMINGROUP group do not exist $ADMINGROUP:$ADMINGID"
-else
-	REZ=$(echo $REZ | cut -d ':' -f 3)
-	if [ ${REZ:=0} -ne $ADMINGID ];
-	then
-		__print "ERROR" "$ADMINGROUP  should be $ADMINGID but is $REZ , exiting"  
-		exit 1
-	fi
-fi
-}
 
 # Print to std format, ignore output if SILENT env var is set to 1 
 # First arg is LABEL 
@@ -119,16 +96,6 @@ else
 fi
 }
 
-is_existing() {
-local __SOURCE=$1 
-shift
-local __PARAM=$*
-getent $__SOURCE $__PARAM > /dev/null 2>&1
-RET=$?
-echo $RET
-return $RET
-}
-
 is_yes() {
 local __PARAM
 local __RET=1
@@ -152,35 +119,6 @@ done
 return $__RET
 }
 
-build_datafs() { 
-local __this
-mount | egrep -w  /$DATAFS > /dev/null 2>&1 
-if [ $? -eq 0 ];
-then
-	__this=$(mount | egrep -w  /$DATAFS  | cut -f 1 -d ' ')	
-	__print "INFO"  "/$DATAFS mounted on $__this"
-	return 1 
-fi
-[[ ! -d /$DATAFS ]] && mkdir /$DATAFS
-egrep -w /$DATAFS /etc/fstab > /dev/null 2>&1
-__this=$(blkid -L $DATAFS) 
-if [ $? -ne 0 ];
-then
-	__print "ERROR"  "$DATAFS partition not found, create label like e2label partition data and run again"
-	exit 1
-fi
-
-__print "INFO"  -n "Adding /$DATAFS (device is $__this) filesystem to fstab ?"
-echo "$__this	/$DATAFS	ext4	defaults        0 2" >> /etc/fstab
-
-mount /$DATAFS 
-if [ $? -ne 0 ];
-then	
-	__print "ERROR"  "Error mounting $__this /$DATAFS"
-	exit 1
-fi
-}
-
 
 #Global vars
 export SILENT=0
@@ -202,8 +140,7 @@ done
 
 #main
 
-amiroot
-#check_user
+#amiroot
 
 # chromium-browser-chromium.desktop
 # firefox thunderbird 
@@ -264,16 +201,18 @@ do
 done
 
 case $GUESS in  
-        debian) grep 'DISTRIB_ID=Ubuntu' etc/lsb-release 
+        debian) grep 'DISTRIB_ID=Ubuntu' /etc/lsb-release  > /dev/null 2>&1
 		if [ $? -eq 0 ]; 
 		then
-			GUESS=ubuntu:debian
+			#GUESS=ubuntu:debian
+			GUESS=ubuntu
 		fi ;;
         redhat) ;;
         suse)   ;;
         mandriva)     if [ -f etc/rosa-release ];
 			then
-				GUESS=rosa:mandriva
+				#GUESS=rosa:mandriva
+				GUESS=rosa
 			fi  
 		;;
         gentoo)
@@ -302,7 +241,7 @@ declare -a cmdgentoo=('equery f' 'eix' 'eix-sync' 'emerge -uNa' 'emerge -av')
 
 # Application 
 #APP="skrooge keepassx chromium-browser|chromium vlc rekonq"
-APP="skrooge keepassx chromium-browser vlc rekonq"
+APP="skrooge keepassx chromium-browser vlc rekonq calibre"
 SYS="git ncftp fsarchiver bumblebee"
 LANG="ibus ibus-anthy"
 OTHER="ttf-ubuntu-font-family"
@@ -324,14 +263,14 @@ else
 	THIS2=$THIS
 fi 
 case $THIS2 in 
-	debian)	cmd=('dpkg -l' 'apt-cache search' 'apt-get update' 'apt-get upgrade' 'apt-get install') ;;
+	debian|ubuntu)	cmd=('dpkg -l' 'apt-cache search' 'apt-get update' 'apt-get upgrade' 'apt-get install') ;;
 	redhat) cmd=('rpm -ql' 'yum search' 'yum update' 'yum upgrade' 'yum install') ;;
 	suse)	cmd=('rpm -ql' 'zypper se' 'zypper up' 'zypper up' 'zypper in') ;;
 	mandriva)	cmd=('uprmq' 'urpmq --fuzzy' 'urpmi -a' 'urmpi --auto-select' 'urpmi') ;;
 	gentoo)	cmd=('equery f' 'eix -e' 'eix-sync' 'emerge -uNa' 'emerge -av') ;;
 	calculate)	cmd=('equery f' 'eix -e' 'eix-sync' 'emerge -uNa' 'emerge -av') ;;
 	sabayon)	cmd=('equo query installed' 'equo search' 'equo update' 'equo update' 'equo install') ;;
-	*)	echo "family not up to date"
+	*)	echo "family not up to date 2"
 		exit ;;
 esac
 
@@ -352,16 +291,28 @@ LIST=""
 for i in ${PK[@]}
 do
 	LIST="$LIST ${!i}"
-	echo $LIST
+	#echo $LIST
 	#eval $PKGUPD
 	#echo $PKGUPD
 done
 
+__print "INFO" "Packages to check : $LIST"
 for PKG in $LIST ;
 do
-	THIS=${cmd[1]}
+	CHECK=${cmd[0]}
+	SEARCH=${cmd[1]}
 	###DUMMY="${PKSE[$THIS]} $PKG"
 	#__print "INFO" "searching $PKG"
-	__print "INFO" "searching $THIS $PKG"
 	#eval $DUMMY
+	$CHECK $PKG > /dev/null 2>&1 
+	if [ $? -eq 0 ]; 
+	then
+		__print "INFO" "$PKG is already installed "
+		continue
+	else
+		__print "INFO" "$PKG is missing"
+	fi	
+	__print "INFO" "searching $THIS $PKG"
+	$THIS $PKG
+	
 done
