@@ -134,8 +134,10 @@ sfdisk -d $__TARGET > $OUT2
 
 usage() {
 cat << fin
-$PRGNAME [-o] [-q] [ -F <FSTYPE> ] [ -t target dump dir ]  [ /dev/devicename OR LABEL ] || [-A] 
-Backup file sytem using fsarchiver, default is to backup all partition of $TARGETFSTYPE which are not mounted 
+$PRGNAME [-o] [-q] [ -F <FSTYPE> ] [ -t target dump dir ]  /dev/devicename OR LABEL  || -A 
+Backup file sytem using fsarchiver, default is to backup all partition of $TARGETFSTYPE which are not mounted
+Argument is either a device/label of source partition to dump or -A to dump all partition for defined fstype (-F to modify)
+MOUNTED partitions will be skippped
 	-A	Do all parition but mounted one backup
 	-d	debug mode
 	-D	Default targeti disk ($TARGETDISK) to backup 
@@ -149,6 +151,11 @@ Backup file sytem using fsarchiver, default is to backup all partition of $TARGE
 fin
 }
 
+
+statfiles() {
+echo
+#for i in $(blkid -o device ) ; do blkid -s LABEL $i | sed 's/^\/dev\/\(.*\):.*\"\(.*\)\".*$/\2-\1.fas/g'; done
+}
 	
 TARGETDIR=$(pwd)
 TARGETDISK=/dev/sda
@@ -210,6 +217,7 @@ fi
 if [ $ALL -eq 0 -a "$SOURCE" == "__NONE__" ] ;
 then
 	__print "ERROR" "$PRGNAME" "No target defined (-A or device list)"
+	usage
 	end 0
 fi
 
