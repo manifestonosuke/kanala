@@ -210,6 +210,17 @@ __STATUS=$(VBoxManage showvminfo $__THIS | grep State | cut -d ':' -f 2- | sed '
 echo "$__STATUS"
 }
 
+
+vbox_ip_status() {
+if [ $# -ne 1];
+then
+	echo "__NULL__"
+	return 1
+fi
+local __THIS=$1
+local __MAC=$(VBoxManage showvminfo $__THIS | grep -i MAC:  | awk -F ":" '{print $3}' | cut -d "," -f 1)
+}
+
 vbox_run_status() {
 local __LIST=$(vbox_list_dry| awk -F ":" '{print $3}')
 for i in $(echo $__LIST) ; 
@@ -230,6 +241,16 @@ then
 fi
 USER=$(getent passwd $(id -u) | cut -d ':' -f1)
 check_user $USER $VBOXGROUP
+
+#VBoxManage list extpacks
+VBoxManage list extpacks | grep VBoxVRDP  > /dev/null 2>&1
+if [ $? -ne 0 ];
+then
+	__print "WARNING" "$PRGNAME" "VRDP extention not installed, headless may be difficult"
+else
+	VRDE='--vrde config'
+fi
+
 }
 
 unset LC_CTYPE
@@ -245,6 +266,8 @@ MANAGE=NULL
 TARGET=NULL
 VERBOSE=0
 VBOXGROUP=vboxusers
+VRDE=""
+
 
 init_check
 
@@ -261,7 +284,14 @@ case $sarg in
         	DEBUG=1 ;;
 	G)	if vbox_exist $OPTARG ;
 		then
-			VBoxSDL --startvm  $OPTARG  > /dev/null 2>&1 &	
+			VBoxSDL --startvm  --vrde config $OPTARG  > /dev/null 2>&1 &	
+			__DUMMY=$(VBoxManage showvminfo Test1 | grep 'VRDE port'  | awk -F ':' '{print $2}')
+			if [ ${__DUMMY:=NULL} != "NULL"];
+			then
+				__print "INFO" "$PRGNAME" "VRDE port : $__DUMMY"
+			else
+				__print "WARNING" "$PRGNAME" "VRDE port NOT found"
+			fi
 		else
 			__print "ERROR" "$PRGNAME" "$OPTARG VM is not existing"
 		fi
