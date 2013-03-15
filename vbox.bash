@@ -102,7 +102,7 @@ shift
 local __INFO=$1
 shift
 local __MSG="$*"
-if [ $__LEVEL == "VERBOSE" ] ;
+if [ "$__LEVEL" == "VERBOSE" ] ;
 then
 	[[ $VERBOSE -eq 1 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "INFO :" "$__INFO : " "$__MSG"
 	return 0
@@ -247,6 +247,12 @@ VBoxManage list extpacks | grep VBoxVRDP  > /dev/null 2>&1
 if [ $? -ne 0 ];
 then
 	__print "WARNING" "$PRGNAME" "VRDP extention not installed, headless may be difficult"
+	VBOXVER=$(VBoxManage -v | cut -d '_' -f 1)
+	EXTAPCKURL=http://download.virtualbox.org/virtualbox/$VBOXVER/Oracle_VM_VirtualBox_Extension_Pack-$VBOXVER.vbox-extpack
+	cat << fin 
+	Download $EXTAPCKURL
+	VBoxManage extpack install <downloaded file>
+fin
 else
 	VRDE='--vrde config'
 fi
@@ -355,7 +361,7 @@ then
 		REZ=$?
 		sleep 5 
 		#[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not started" 
-		if [ $REZ -ne 0 ] ;
+		if [ $REZ -eq 0 ] ;
 		then 
 			__print   "INFO" "$PRGNAME" "$TARGET started, it may take some time to be ready" 
 		else
