@@ -4,9 +4,7 @@
 # This script is a wrapper for fsarchiver
 # Basically check local device for ext4 FS and dump to file if not mounted
 ###
-# TODO 
-# Timing 
-# __print and verbose silence mode 
+
 
 PRGDIR=`type $0 | awk '{print $3}'`
 PRGNAME=`basename $0`
@@ -14,64 +12,52 @@ PRGNAME=`basename $0 |  awk -F '.' '{print $1}'`
 
 
 __print() {
-local __MAXARGS=4
-local __NBARGS=$#
 # If 1st Param (__MODE__) is set to verbose it means that msg will display only in verbose mode 
 # The displayed level will be info. Verbose mode is set by program VERBOSE var
 # SILENT mode says that this can be ignored if silent, defined by global var silent 
 local __MODE=$1 
 
-case $__NBARGS  in 
-	3)  __MODE=NORMAL ;;
-	4)  __MODE=$1
-	shift ;;
-	*)  printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "Error Calling function __print"
-	return 1 ;;
+case ${__MODE:=NULL}  in 
+	VERBOSE) shift ;;
+	SILENT)  shift ;;
+	*)	__MODE=NORMAL ;;
 esac
 
-# Now we have extracted 1st arg is it is a mode getting standard args 
+#echo "mode is $__MODE"
+
+if [ $# -lt 3 ];
+then
+        printf "%-10s %-10s %-22s %-30s \n" "ERROR :" "$PRGNAME : " "Error Calling function __print"
+fi
+#if [ "$__MODE" == "SILENT" ] ; 
+#then
+#	return 0
+#fi
 local __LEVEL=$1
 shift
 local __INFO=$1
 shift
 local __MSG="$*"
-
-
-# if SILENT var is 1 only dislay errors and MANDATORY messages
-if [ ${SILENT:=0} -eq 1 ];
+if [ $__MODE == "NORMAL" ]; 
 then
-	if [ $__LEVEL == ERROR ]; 
-	then
-		printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
-	elif [ $__MODE == "MANDATORY" ] ;
-	then 
-		printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
-	fi
+	printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
 	return 0
-fi 
-
-# if global var VERBOSE is 1 display only if mode is VERBOSE
-
-case ${__MODE:=NULL}  in 
-	VERBOSE)  [[ ${VERBOSE:=0} -eq 1 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
-	 	return 0
-		;;
-	MANDATORY|NORMAL)	printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
-	;;
-	*)	printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG" 
-	;;
-esac
-return 0
+fi
+if [ $__MODE == "VERBOSE" ] ;
+then
+        [[ $VERBOSE -eq 1 ]] &&  printf "%-10s %-10s %-22s %-30s \n" "INFO :" "$__INFO : " "$__MSG"
+        return 0
+fi
+if [ $__MODE == "SILENT" ] ;
+then
+	if [ ${SILENT:=0} -ne 1 ];
+        then
+                printf "%-10s %-10s %-22s %-30s \n" "$__LEVEL :" "$__INFO : " "$__MSG"
+        fi
+fi
 }
 
 amiroot() {
-if [ ${RRRRR:=0} -eq 1 ];
-then
-	# if RRR is set to 1 ignore this
-	# it is a trick for testing
-	return
-fi
-
 CMD=/usr/bin/whoami
 if [ ! -x $CMD ];
 then
@@ -134,10 +120,8 @@ sfdisk -d $__TARGET > $OUT2
 
 usage() {
 cat << fin
-$PRGNAME [-o] [-q] [ -F <FSTYPE> ] [ -t target dump dir ]  /dev/devicename OR LABEL  || -A 
-Backup file sytem using fsarchiver, default is to backup all partition of $TARGETFSTYPE which are not mounted
-Argument is either a device/label of source partition to dump or -A to dump all partition for defined fstype (-F to modify)
-MOUNTED partitions will be skippped
+$PRGNAME [-o] [-q] [ -F <FSTYPE> ] [ -t target dump dir ]  [ /dev/devicename OR LABEL ] || [-A] 
+Backup file sytem using fsarchiver, default is to backup all partition of $TARGETFSTYPE which are not mounted 
 	-A	Do all parition but mounted one backup
 	-d	debug mode
 	-D	Default targeti disk ($TARGETDISK) to backup 
@@ -151,11 +135,6 @@ MOUNTED partitions will be skippped
 fin
 }
 
-
-statfiles() {
-echo
-#for i in $(blkid -o device ) ; do blkid -s LABEL $i | sed 's/^\/dev\/\(.*\):.*\"\(.*\)\".*$/\2-\1.fas/g'; done
-}
 	
 TARGETDIR=$(pwd)
 TARGETDISK=/dev/sda
@@ -175,7 +154,7 @@ SOURCE=__NONE__
 PARTSAVE=0
 ALL=0 
 
-while getopts AdDF:hoqPt:z sarg
+while getopts AdDF:hoqPt:z: sarg
 do
 case $sarg in
 	A)	ALL=1 ;;
@@ -205,10 +184,6 @@ then
 	SOURCE="$*" 
 fi
 
-
-#### MAIN ##### 
-amiroot 
-
 if [ $ALL -eq 1 -a "$SOURCE" != "__NONE__" ] ;
 then
 	__print "ERROR" "$PRGNAME" "Parameter error please use -A OR specify devices"
@@ -216,8 +191,12 @@ then
 fi
 if [ $ALL -eq 0 -a "$SOURCE" == "__NONE__" ] ;
 then
+	if [ ${PARTSAVE:=0} -eq 1 ] ;
+	then
+		partsave $TARGETDISK
+		end 0 
+	fi
 	__print "ERROR" "$PRGNAME" "No target defined (-A or device list)"
-	usage
 	end 0
 fi
 
@@ -228,13 +207,15 @@ else
 	__print "INFO" "$PRGNAME" "Preparing  to dump all appropriate device on $TARGETDISK "	
 	SOURCE=ALL
 fi
-
-
+#### MAIN ##### 
+#amiroot 
 
 if [ ${PARTSAVE:=0} -eq 1 ] ;
 then
-	partsave $TARGETDISK 
+	partsave $TARGETDISK
+	end 0 
 fi
+
 	
 #SOURCE=$OPTARG ;;
 
