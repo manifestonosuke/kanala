@@ -1,0 +1,7 @@
+#source dir to be sync|source base FS and device|destination FS and device
+/music|/dev/sda4:/data|/dev/sdb1:/run/media/pierre/SaveLinux/data
+/apps/livres|/dev/sda4:/data|/dev/sdb1:/run/media/pierre/SaveLinux/data
+/photo|/dev/sda4:/data|/dev/sdb1:/run/media/pierre/SaveLinux/data
+/home/pierre|/dev/sda4:/data|/dev/sdb1:/run/media/pierre/SaveLinux/data
+/system|/dev/sda4:/data|/dev/sdb1:/run/media/pierre/SaveLinux/data
+/local|/dev/sda4:/data|/dev/sdb1:/run/media/pierre/SaveLinux/data
