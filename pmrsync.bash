@@ -1,12 +1,11 @@
 #!/bin/bash
 
-#HDSOURCE=/dev/sda2
-#DIRSOURCE=/w7
-#HDDEST=/dev/sdb1
-#DIRDEST=/mnt/SAVEFAT
-#SYNCDIR=data/
+# This script must have propery file as defined below 
+PROPFILE=pmrsync.prop
+# Format is fields separated by | as 
+# sourcedir|exclude pattern|dest dir|option
+# option field is still ongoing 
 
-PROPFILE=rsync.prop
 
 prtmsg() {
 	printf "%-20s %-20s \n" "$1" "$2"
@@ -16,7 +15,7 @@ usage() {
 cat << fin
 sync according $PROPFILE file entry
 	-c Create dest dir when non existing
-	-f entry force mount of input and ouput FS	
+	-n Do not prompt before starting rsync 
 	-S put extanded stat transfert report (rsync)
 fin
 }
@@ -36,24 +35,23 @@ fi
 	
 check_dir
 
-FORCEMOUNT=0
 CREATEDESTDIR=0
-EXSTAT=0 
+EXSTAT=0
+PROMPT=1 
 
 BASEARGS="avxtz --progress"
 
 EXARGS="--exclude .cache "
 
-while getopts cdfhS sarg
+while getopts cdhnS sarg
 do
 case $sarg in
         c)      CREATEDESTDIR=1 ;;
         d)      set -x
                 DEBUG=1 ;;
-        f)      FORCEMOUNT=1
-                ;;
         h)      usage
                 end;;
+        n)      PROMPT=0 ;;
 	S)	EXSTAT=1 ;;
         *)      echo "ERROR : $PRGNAME : Bad option or misusage"
                 usage
@@ -72,41 +70,62 @@ do
 		continue
 	fi 
 	#echo "$line"
-	SYNCDIR=$(echo $line | cut -d '|' -f 1)
-	HDSOURCE=$(echo $line | cut -d '|' -f 2|cut -d ':' -f 1) 
-	DIRSOURCE=$(echo $line | cut -d '|' -f 2|cut -d ':' -f 2)
+	SOURCEDIR=$(echo $line | cut -d '|' -f 1)
+	DESTDIR=$(echo $line | cut -d '|' -f 3)
 
-	if [ ! -d $DIRSOURCE/$SYNCDIR ] ;
+	if [ ! -d $SOURCEDIR ] ;
 	then
-		prtmsg "ERROR" "Source dir  $DIRSOURCE/$SYNCDIR not found"	
+		prtmsg "ERROR" "Source dir  $SOURCEDIR not found"	
 		continue
-	fi	 
-	HDDEST=$(echo $line | cut -d '|' -f 3|cut -d ':' -f 1) 
-	DIRDEST=$(echo $line | cut -d '|' -f 3|cut -d ':' -f 2) 
-	if [ ! -d $DIRDEST/$SYNCDIR ] ;         
+	fi
+
+	FIRST=$(echo $DESTDIR | cut -c 1)
+ 	if [ ${FIRST:=NULL} != '/' ] ;
+	then
+		__DUMMY=$(pwd)
+		DESTDIR=$__DUMMY/$DESTDIR
+			
+	fi
+	if [ ! -d $DESTDIR ] ;         
         then     
-                prtmsg "ERROR" "Dest dir  $DIRDEST/$SYNCDIR  not found" 
+                prtmsg "ERROR" "Dest dir  $DESTDIR  not found" 
 		if [ $CREATEDESTDIR -eq 1 ] ;
 		then  
-			mkdir -p $DIRDEST/$SYNCDIR > /dev/null 2>&1                  
+			mkdir -p $DESTDIR > /dev/null 2>&1                  
 			if [ ! $? ] 
 			then
-				prtmsg "ERROR" "Cant create $DIRDEST/$SYNCDIR" 
+				prtmsg "ERROR" "Cant create $DESTDIR" 
                 		continue 
 			else
-				prtmsg "INFO" "$DIRDEST/$SYNCDIR created"
+				prtmsg "INFO" "$DESTDIR created"
 			fi
 		else
 			continue
 		fi
-        fi         
+        fi        
+	
+	EXARGS=""	
+	EXCLUDELIST=$(echo $line | cut -d '|' -f 2)
+	EXCLUDELIST=$(echo $EXCLUDELIST)
+	if [ "${EXCLUDELIST:=EMPTY}" != "EMPTY" ];
+	then
+		for i in $(echo $EXCLUDELIST) ;
+		do
+			EXARGS="--exclude $i ${EXARGS}"
+		done
+	fi
+ 
 	ARGS=$BASEARGS
 	ARGS="${BASEARGS} ${EXARGS}"
-	prtmsg "INFO"  "rsync -$ARGS $DIRSOURCE$SYNCDIR/ $DIRDEST$SYNCDIR/"
-	echo -n "Continue : "
-	read dummy   </dev/tty
+	prtmsg "INFO"  "rsync -$ARGS $SOURCEDIR/ $DESTDIR/"
+	if [ $PROMPT -ne 0 ];
+	then
+		echo -n "Continue : "
+		read dummy   </dev/tty
+	fi
 	#[[ $EXSTAT -eq 1 ]] && ARGS="$ARGS --stats" 
-	rsync -$ARGS $DIRSOURCE$SYNCDIR/ $DIRDEST$SYNCDIR/
+	rsync -$ARGS $SOURCEDIR/ $DESTDIR/
+	#echo "rsync -$ARGS $SOURCEDIR/ $DESTDIR/"
 done < ./$PROPFILE
 
 
