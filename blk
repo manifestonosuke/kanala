@@ -156,7 +156,7 @@ local __MNT
 local __DUMMY 
 __MNT=$1 
 __DUMMY=$(df -h $__MNT | grep $__MNT) > /dev/null 2>&1 
-if [ ${__DUMMY:=EMPTY} == "EMPTY" ] 
+if [ "${__DUMMY:=EMPTY}" == "EMPTY" ] 
 then
 	printf "%-10s %-10s %-22s %-30s \n" "WARNING" "do_chroot" "$__MNT suspisious, not a FS"
 fi
