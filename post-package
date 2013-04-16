@@ -240,11 +240,12 @@ declare -a cmdmandriva=('uprmq' 'urpmq --fuzzy' 'urpmi -a' 'urmpi --auto-select'
 declare -a cmdgentoo=('equery f' 'eix' 'eix-sync' 'emerge -uNa' 'emerge -av')
 
 # Application 
-#APP="skrooge keepassx chromium-browser|chromium vlc rekonq"
-APP="skrooge keepassx chromium-browser vlc rekonq calibre"
-SYS="git ncftp fsarchiver bumblebee"
+#APP="skrooge keepassx chromium-browser|chromium vlc rekonq avidemux-qt"
+APP="skrooge keepassx vlc calibre"
+SYS="git ncftp fsarchiver bumblebee virtualbox"
 LANG="ibus ibus-anthy"
 OTHER="ttf-ubuntu-font-family"
+INTERNET="chromium-browser rekonq firefox thunderbird ktorrent kopete filezilla"
 
 THIS=$(findfamilly)
 if [ ${THIS:=NULL} == 'NULL' ];
@@ -281,7 +282,7 @@ PKSE=([debian]="apt-cache search" [redhat]="yum search" [suse]="yum search" [man
 PKUP=([debian]="apt-get update" [redhat]="yum update" [suse]="zypper up" [mandriva]="urpmi -a")
 PKUG=([debian]="apt-get upgrade" [redhat]="yum upgrade" [suse]="zypper up" [mandriva]="urpmi --auto-select")
 
-declare -a PK=("APP" "SYS" "LANG" "OTHER")
+declare -a PK=("APP" "SYS" "LANG" "OTHER" "INTERNET")
 PKNB=${#PK[@]}
 
 __print "INFO" "Updating package database"

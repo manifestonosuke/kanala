@@ -256,8 +256,8 @@ then
 	VBOXVER=$(VBoxManage -v | cut -d '_' -f 1)
 	EXTAPCKURL=http://download.virtualbox.org/virtualbox/$VBOXVER/Oracle_VM_VirtualBox_Extension_Pack-$VBOXVER.vbox-extpack
 	cat << fin 
-	Download $EXTAPCKURL
 	VBoxManage extpack install <downloaded file>
+	Download $EXTAPCKURL
 fin
 else
 	VRDE='--vrde config'
