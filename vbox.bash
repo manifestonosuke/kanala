@@ -34,12 +34,12 @@ Handle command line for vbox easily
 Run without arg will list vbox on the machine 
 usage : $PRGNAME 
         -d : run in debug mode
-	-l : List VM with power status only (State)
+	-l : List VM with power status (State) and general info about you virtualbox configuration
 	-p : pause the vbox 
 	-r : resume the vbox
 	-R : Reset the vbox	
 	-s : start the vbox
-	-S : Give summary status of a named vm OR all vm is all is passed as parameter (bad if you have a vm called all)
+	-S : Give summary status of a named vm 
 	-O : Power OFF the vbox
 	-v : full verbose mode (will list all vbox command runned)
 FIN
@@ -228,6 +228,12 @@ do
 	__STATUS=$(VBoxManage showvminfo $i | grep State | cut -d ':' -f 2- | sed 's/  */ /g'| sed 's/  *$//')
 	__print "INFO" "$PRGNAME" "$i : $__STATUS"
 done
+__DUMMY=$(VBoxManage list extpacks  | grep "Extension Packs:" | cut -d : -f 2)
+if [ ${__DUMMY:=0} -gt 0 ]; 
+then
+	__print "INFO" "$PRGNAME" "Extension found"
+	VBoxManage list extpacks  | awk -F ':' '/Pack no/'
+fi
 }
 
 # Check various parameters
@@ -290,9 +296,21 @@ case $sarg in
         	DEBUG=1 ;;
 	G)	if vbox_exist $OPTARG ;
 		then
+			__DUMMY=$(VBoxManage showvminfo $OPTARG | grep -i VRDE: | awk -F ':' '{print $2}' | awk -F ' ' '{print $1}')	
+			if [ ${__DUMMY:=NULL} != "enabled" ] ; 
+			then
+				VBoxManage modifyvm "$OPTARG" --vrde on
+				if [ $? -ne 0 ] ;
+				then
+					__print "ERROR" "$PRGNAME" "VRDE port NOT found, exiting"
+					end 1
+				else
+					__print "INFO" "$PRGNAME" "VRDE port enabled"
+				fi
+			fi	
 			VBoxSDL --startvm  --vrde config $OPTARG  > /dev/null 2>&1 &	
-			__DUMMY=$(VBoxManage showvminfo Test1 | grep 'VRDE port'  | awk -F ':' '{print $2}')
-			if [ ${__DUMMY:=NULL} != "NULL"];
+			__DUMMY=$(VBoxManage showvminfo $OPTARG | grep 'VRDE port'  | awk -F ':' '{print $2}')
+			if [ ${__DUMMY:=NULL} != "NULL" ];
 			then
 				__print "INFO" "$PRGNAME" "VRDE port : $__DUMMY"
 			else
@@ -357,7 +375,7 @@ then
 		[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not reset" 
 		end $?
 	;; 
-	s)	nohup VBoxHeadless --startvm $TARGET > $TMPF1 2>&1 &
+	s)	VBoxHeadless --startvm $TARGET -vrde on > $TMPF1 2>&1 &
 		REZ=$?
 		sleep 5 
 		#[[ $REZ -ne 0 ]] &&  __print   "ERROR :" "$PRGNAME : " "$TARGET not started" 
