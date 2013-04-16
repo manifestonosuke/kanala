@@ -3,7 +3,7 @@ It included root environement files.
 
 As for now : 
 
-1 - vbox
+1 - vb
 # This script ease vbox command line for basic actions like stop/start/status ...
 # Options are in usage() and can be check from cli with -h option 
 
