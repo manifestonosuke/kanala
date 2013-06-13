@@ -99,9 +99,10 @@ then
 	end 10
 fi
 
-__DATE=$(date '+%Y%m%d') 
-OUT1=$__TARGET.mbr.dd-backup.$__DATE
-OUT2=$__TARGET.sfdisk.backup.$__DATE
+__DATE=$(date '+%Y%m%d')
+T=$(basename $__TARGET)
+OUT1=$T.mbr.dd-backup.$__DATE
+OUT2=$T.sfdisk.backup.$__DATE
 local i=0 ; 
 for i in [ $OUT1 $OUT2 ]; 
 do
@@ -112,9 +113,9 @@ do
 	fi
 done
 __print "INFO" "$PRGNAME" "Creating $OUT1"
-dd if=$__TARGET of=$OUT1 bs=512 count=1
+dd if=$__TARGET of=./$OUT1 bs=512 count=1
 __print "INFO" "$PRGNAME" "Creating $OUT2"
-sfdisk -d $__TARGET > $OUT2
+sfdisk -d $__TARGET > ./$OUT2
 }
 
 
