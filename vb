@@ -6,7 +6,8 @@
 # Options are in usage() and can be check from cli with -h option 
 #
 #
-
+# to do 
+# VBoxManage getextradata global enumerate
 
 # Determine program name
 PRGDIR=`type $0 | awk '{print $3}'`
@@ -176,6 +177,7 @@ $1 ~ /^ostype/ {printf "%s:%s\n",$1,$2}
 $1 ~ /^VMState\y/ {printf "%s:%s\n",$1,$2} 
 $1 ~ /^memory/ {printf "%s:%s\n",$1,$2} 
 $1 ~ /^cpus/ {printf "%s:%s\n",$1,$2} 
+$1 ~ /^vrdeports/ {printf "%s:%s\n",$1,$2} 
 ' | sed s/\"//g | sed 's/:/		:	/' 
 
 	local __IP=$(VBoxManage guestproperty get $i /VirtualBox/GuestInfo/Net/0/V4/IP | awk -F ':' '{print $2}')
