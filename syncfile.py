@@ -1,7 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf8 -*-
 """
-	fsarchiver based FS backup
+	rsync backup wrapper with property file
+
+	TODO :
+		-P prompt on each iteration
+		Do an improved process output and control
 """
 
 import sys
@@ -93,7 +97,7 @@ class Message:
 def usage():
 	message="usage : "+PRGNAME
 	add="""
-	[-c] [-n] [-S] [ section to dump ] 
+	[-c] [-n] [-S] [ -v X ] [ section to dump ] 
 	Backup file sytem using fsarchiver
 	default is to backup all partition of ext4 which are not mounted 
 	command line options supersede file options
@@ -101,10 +105,11 @@ def usage():
 	-d      debug mode
 	-h      This page 
 	-L	List sections in the property file and exit (ignore DEFAULT)
-	-n      do not prompt on each iteration
 	-p 	file use this file as property file (instead of default)
+	-P      do not prompt on each iteration
 	-S      do extended stat transfert (rsync --progress)
 	-t	target directory
+	-v	Verbosity level X where X is 0,1,2,3 (0 is for this script verbose level) 
 	-z	enable compression
 	Possible settings for DEFAULT  in prop file are :	
 	CREATE on/off
@@ -126,7 +131,7 @@ def parseargs(argv,option):
 	if len(argv)==0:
 		return option
 	try:
-		opts, args = getopt.getopt(argv, "cdhnLp:St:z", ["help"])
+		opts, args = getopt.getopt(argv, "cdhnLp:St:v:z", ["help"])
 	except getopt.GetoptError:
 		Message.fatal(PRGNAME,"Argument error",10)
 	#if Message.getlevel()=='debug':
@@ -143,18 +148,21 @@ def parseargs(argv,option):
 			end(0)
 		elif opt == '-c':
 			option['create']='on'
-		elif opt == '-n':
-			option['prompt']='on'
 		elif opt == '-L':
 			option['list']='on'
 		elif opt == '-p':
 			option['prop']=arg
+		elif opt == '-P':
+			option['prompt']='on'
 		elif opt == '-S':
 			option['progress']='full'
 		elif opt == '-t':
 			option['destination']=arg
-		elif opt == '-t':
-			option['destination']=arg
+		elif opt == '-v':
+			if arg == '0' :
+				Message.setlevel('verbose') 
+			else:
+				option['verbose']=str(arg)
 		elif opt == '-z':
 			option['zip']='on'
 		else:
@@ -178,7 +186,7 @@ def execute(cmd,option={}):
 def backup_data(option,config):
 	""" do the backup of the data according the option dict param"""		
 	target={}
-	arguments='-avx'
+	arguments='-ax'
 	destination=option['destination']
 	if option['zip'] == 'off':
 		pass
@@ -188,6 +196,13 @@ def backup_data(option,config):
 		arguments+=' -z'
 	else:
 		Message.fatal(PRGNAME,"option compress has invalid value "+option['zip']) 
+	if 'verbose' in option:
+		if option['verbose'] == '1':
+			arguments+=" -v" 
+		elif option['verbose'] == '2':
+			arguments+=" -v -v"
+		else:
+			Message.warning(PRGNAME,"verbose level incorrect "+option['verbose'])
 	#for section in config.sections():
 	for section in config:
 		optargs=""
@@ -205,17 +220,22 @@ def backup_data(option,config):
 			#target.update({section[section].get('source')})
 			source=config[section].get('source')
 			source="/"+source.strip("/")
+		if not os.path.exists(source):
+			Message.warning(PRGNAME,"Source path does not exist "+source)
+			continue
 		if 'exclude' in config[section]:
 			#exclude=config[section]['exclude'].split()
 			for el in config[section]['exclude'].split():
 				optargs+=" --exclude "+el
 		rsync="rsync "+arguments+" "+optargs+" "+source+" "+destination
-		print(rsync)
+		Message.verbose(PRGNAME,"Running "+rsync)
 		simple_run(rsync)
 		#run=rsync.split() 
 		#while True:
 		#	if ps.poll() != None:
 		
+
+
 
 def simple_run(cmd):
 	os.system(cmd)
