@@ -12,22 +12,20 @@ import sys
 import os
 import getopt
 import subprocess
-#import re
-#from stat import *
+from subprocess import call
 import time
-#from time import *
 from time import localtime,time,sleep,mktime
 import datetime
 from datetime import datetime
 import configparser
 
-
 #main
 
 PRGNAME=os.path.basename(sys.argv[0])
 NEEDED=['rsync','blkid']
-INIFILE="./syncmyfile.ini"
-
+HOME=os.environ["HOME"]
+INIFILE=HOME+"/.syncmyfile.ini"
+LOGFILE="/tmp/syncfile.out"
 
 def end(code=0):
 	sys.exit(code)
@@ -106,21 +104,24 @@ def usage():
 	-h      This page 
 	-L	List sections in the property file and exit (ignore DEFAULT)
 	-p 	file use this file as property file (instead of default)
-	-P      do not prompt on each iteration
-	-S      do extended stat transfert (rsync --progress)
+	-P      do extended stat transfert (rsync --progress)
+	-S      Complete sync source/dest (meaning erasing files on dest that are not on source)
 	-t	target directory
 	-v	Verbosity level X where X is 0,1,2,3 (0 is for this script verbose level) 
 	-z	enable compression
 	Possible settings for DEFAULT  in prop file are :	
-	CREATE on/off
-	PROMPT on/off
-	STATS on/off
-	ZIP on/off or level (1 to 10)
+	CREATE on/off (as -c)
+	STATS on/off (as -P)
+	ZIP on/off or level (1 to 10) (as -z) 
 	DESTINATION path to destination directory
 
 	Other section will be treated as source directory to process 
 	if no section directory are passed thrue argument all section will be processed
 	if section are passed then only this one will be processed 
+	Possible settings for this options are 
+	SOURCE /path which is the source path 
+	EXCLUDE is a list of filename/directory to exclude from backup	
+	SYNC on/off to sync source/dest exactly (as -S)
 
 	WARNING rsync will never cross filesystem boundaries
 	"""
@@ -131,7 +132,7 @@ def parseargs(argv,option):
 	if len(argv)==0:
 		return option
 	try:
-		opts, args = getopt.getopt(argv, "cdhnLp:St:v:z", ["help"])
+		opts, args = getopt.getopt(argv, "cdhnLp:PSt:v:z", ["help"])
 	except getopt.GetoptError:
 		Message.fatal(PRGNAME,"Argument error",10)
 	#if Message.getlevel()=='debug':
@@ -153,16 +154,15 @@ def parseargs(argv,option):
 		elif opt == '-p':
 			option['prop']=arg
 		elif opt == '-P':
-			option['prompt']='on'
-		elif opt == '-S':
 			option['progress']='full'
+		elif opt == '-S':
+			option['sync']='on'
 		elif opt == '-t':
 			option['destination']=arg
 		elif opt == '-v':
+			option['verbose']=str(arg)
 			if arg == '0' :
 				Message.setlevel('verbose') 
-			else:
-				option['verbose']=str(arg)
 		elif opt == '-z':
 			option['zip']='on'
 		else:
@@ -179,15 +179,14 @@ def parseargs(argv,option):
 def cmd_exists(cmd):
 	return subprocess.call("type " + cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) == 0
 
-def execute(cmd,option={}):
-	if len(option) == 0:
-		pass	 		
-
 def backup_data(option,config):
 	""" do the backup of the data according the option dict param"""		
+	found=0
+	Message.getlevel()
 	target={}
-	arguments='-ax'
+	arguments='-ax --safe-links --links'
 	destination=option['destination']
+	Message.verbose(PRGNAME,"output dir is set to "+destination)
 	if option['zip'] == 'off':
 		pass
 	elif option['zip'] in str(range(0,10)):
@@ -201,22 +200,23 @@ def backup_data(option,config):
 			arguments+=" -v" 
 		elif option['verbose'] == '2':
 			arguments+=" -v -v"
-		else:
-			Message.warning(PRGNAME,"verbose level incorrect "+option['verbose'])
+
+	
 	#for section in config.sections():
 	for section in config:
 		optargs=""
 		if section == 'DEFAULT':
 			continue
-		if not option['target'] == '':
+		if option['target'] != '':
 			if not section in option['target']:
-				Message.info(PRGNAME,"Skipping "+section+" is not in list")
+				Message.debug(PRGNAME,"Skipping "+section+" is not in list")
 				continue
 		Message.info(PRGNAME,"New Section "+section)
 		if not 'source' in config[section]:
 			Message.warning(PRGNAME,"section "+section+" has no source")
 			continue
 		else: 
+			found+=1
 			#target.update({section[section].get('source')})
 			source=config[section].get('source')
 			source="/"+source.strip("/")
@@ -227,18 +227,143 @@ def backup_data(option,config):
 			#exclude=config[section]['exclude'].split()
 			for el in config[section]['exclude'].split():
 				optargs+=" --exclude "+el
-		rsync="rsync "+arguments+" "+optargs+" "+source+" "+destination
-		Message.verbose(PRGNAME,"Running "+rsync)
-		simple_run(rsync)
-		#run=rsync.split() 
-		#while True:
-		#	if ps.poll() != None:
+	
+		if 'sync' in option:
+			arguments+=' --delete'
 		
+		rsync="/usr/bin/rsync "+arguments+" "+optargs+" "+source+" "+destination
+		#run_simple(rsync)
+		#run_popen(rsync)
+		if option['verbose'] == '2' :
+			run_popen_full(rsync,time=1,verbose='full')	
+		elif option['verbose'] == '1':
+			log=open(LOGFILE,'w')
+			run_popen_full(rsync,time=1,log='log')
+			log.close()
+		else:
+			run_popen_full(rsync,time=1)
+	if found == 0:
+		Message.warning(PRGNAME,"No valid section found")	
+
+def run_command(cmd,**option):
+	Message.verbose(PRGNAME,"Running "+cmd)
+	if 'simple' in option:
+		rc=run_simple(cmd)
+		return(rc)	
+	if 'popen' in option:
+		cmd=cmd.split()
+		if option['popen'] == 'shell':
+			rc=run_popen(cmd)
+			return(rc)			
+		else:
+			Message.error(PRGNAME,"option 'popen'")
+			return(9)
+
+def run_popen(cmd):
+	Message.verbose(PRGNAME,"Running "+cmd)
+	Message.debug(PRGNAME,"Attempting to run_popen"+cmd)
+	ps=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	stdout,stderr=ps.communicate()
+	if ps.returncode == 0:
+		print(stdout.decode("utf-8"))
+	else:
+		Message.debug(PRGNAME,"Error running command popen"+cmd.join())
+		Message.error(PRGNAME,"Error running popen"+stdout)
+		return(ps.returncode)
+
+def run_popen_full(cmd,**option):
+	Message.verbose(PRGNAME,"Running "+cmd)
+	CLEAN_FREQ=100
+	CLEAN_TIME=.0001
+	OUT_TTY='stdout'
+	Message.debug(PRGNAME,"Attempting to run_popen_full"+cmd)
+	
+	# Prepare terminal settings and init variables
+	term_size=int(os.popen('stty size', 'r').read().split()[1])
+	delete=""
+	count=0
+	string=""
+
+	# Time calculation value
+	now=str(datetime.now().hour)+":"+str(datetime.now().minute)+":"+str(datetime.now().second)
+	timestart2=localtime()
+	Message.info(PRGNAME,"Starting at "+now)
+
+	# Start processing command
+	ps=subprocess.Popen(cmd.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
+	if 'verbose' in option:
+		verbose=option['verbose']
+		print(verbose)
+	else:
+		verbose='normal'
 
 
+	if 'log' in option:
+		log=option['log'] 
+	else:
+		log='none'
 
-def simple_run(cmd):
-	os.system(cmd)
+	# Polling loop
+	while True:
+		# Poll = None => End 
+		if ps.poll() != None:
+			break
+		try:
+			if OUT_TTY == 'stderr' :
+				nextline = next(ps.stderr)
+			else:
+				nextline = next(ps.stdout)
+		except StopIteration:
+			break
+		count+=1
+		line=nextline.decode('utf-8').rstrip('\n')
+		if log == 'full':
+			log.write(line,'\n')
+		if len(line) == 0:
+			continue
+		if verbose == 'full':
+			print(line)
+			continue
+		line=line[:term_size-16]
+		print("\r >> ",line,sep='',end='')
+		# To clean the output every FREQ lines we display empty line
+		# Limit the line delete frequency to avoid flickering
+		#sleep(CLEAN_TIME)
+		line_size=term_size
+		sys.stdout.flush()
+		delete=' '*term_size
+		if count % CLEAN_FREQ == 0:
+			print("\r"+delete,end='')
+		sys.stdout.flush()
+	sleep(2)
+	stderr=ps.communicate()[1]
+	ret=ps.returncode
+	if ret == 0:
+		sys.stdout.flush()
+		print()
+		Message.info(PRGNAME,str(count)+" Files copied")
+	else:
+		print(stderr.decode("utf-8"))
+		Message.error(PRGNAME,"command did not end properly"+cmd)
+		return(ret)
+	
+	if 'time' in option:
+		now=str(datetime.now().hour)+":"+str(datetime.now().minute)+":"+str(datetime.now().second)
+		timeend2=localtime()
+		diff=mktime(timeend2)-mktime(timestart2)
+		Message.info(PRGNAME,"Ending at "+now+" ("+str(diff)+" seconds)")
+	print()
+	return(ret)
+
+
+def run_simple(cmd):
+	#os.system(cmd)
+	rc = call(cmd, shell=True)
+	return rc
+
+def run_full(cmd):
+	cmd=cmd.split()
 	"""
 	ps=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout,stderr=ps.communicate()
@@ -262,7 +387,7 @@ else:
 		if cmd_exists(i) == False:
 			Message.fatal(PRGNAME,"Command "+i+" is not found")
 	""" initial values """
-	option={ 'create' : 'no', 'prompt' : 'yes', 'prop' : INIFILE ,
+	option={ 'create' : 'no', 'prompt' : 'yes', 'prop' : INIFILE , 'verbose' : '-1',
 		'progress' : 'none', 'zip' : 'no', 'destination' : '' , 'target' : ''
 	}
 	config = configparser.ConfigParser()
