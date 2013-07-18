@@ -26,6 +26,7 @@ As for now :
 Wrapper to fsarchiver backup 
 Default is to backup all linux FS from sda, many options.
 
-6 - post-package 
-Friend of post-install that install usual packages with various package utilities
-Still very new and not finished
+6 - syncfile.py 
+This script help to automate rsync with a property file 
+Fill this property file and then run the script 
+See syncfile.readme for details

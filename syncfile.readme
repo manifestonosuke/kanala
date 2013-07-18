@@ -1,0 +1,37 @@
+usage : syncfile.py
+	[-c] [-n] [-S] [ -v X ] [ TAG to dump ] 
+	If no section directory are passed thrue argument all section in ini file will be processed
+	Command line options supersede file options
+	-c      create destination dir (fail if non existing)
+	-d      debug mode
+	-h      This page 
+	-L	List sections in the property file and exit (ignore DEFAULT)
+	-p 	file use this file as property file (instead of default)
+	-P      do extended stat transfert (rsync --progress)
+	-S      Complete sync source/dest (meaning erasing files on dest that are not on source)
+	-t	target directory
+	-v	Put program in verbose mode (not rsync use -V)
+	-V	Rsync Verbosity level X where X is 1,2 (1 means 1 line display and 2 full display) 
+	-z	enable compression
+
+	Property file : 
+	It is possible to set options in a property file named  : ~/.syncmyfile.ini
+	Each line format is KEY = VALUE	
+	
+	General settings are in  [DEFAULT] section as  :	
+	CREATE on/off (as -c)
+	STATS on/off (as -P)
+	ZIP on/off or level (1 to 10) (as -z) 
+	DESTINATION path to destination directory
+	VERBOSE add additionnal informations on pb (like -v) 
+
+	Other section will be treated as TAG for source directory to process 
+	if section are passed then only this one will be processed 
+	Possible settings for this options are 
+	SOURCE /path which is the source path 
+	EXCLUDE is a list of filename/directory to exclude from backup	
+	SYNC on/off to sync source/dest exactly (as -S)
+
+	WARNING rsync will never cross filesystem boundaries
+
+A sample of property file is available named syncmyfile.ini	
