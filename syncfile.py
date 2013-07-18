@@ -70,7 +70,7 @@ class Message:
 	
 	def verbose(cls,p,m):
 		if Message.level == 'verbose':
-			print("%-10s : %-10s : %-30s" % ("INFO",p,m))
+			print("%-10s : %-10s : %-30s" % ("VERBOSE",p,m))
 	verbose=classmethod(verbose)
 	
 	def run(cls,p,m):
@@ -95,10 +95,9 @@ class Message:
 def usage():
 	message="usage : "+PRGNAME
 	add="""
-	[-c] [-n] [-S] [ -v X ] [ section to dump ] 
-	Backup file sytem using fsarchiver
-	default is to backup all partition of ext4 which are not mounted 
-	command line options supersede file options
+	[-c] [-n] [-S] [ -v X ] [ TAG to dump ] 
+	If no section directory are passed thrue argument all section in ini file will be processed
+	Command line options supersede file options
 	-c      create destination dir (fail if non existing)
 	-d      debug mode
 	-h      This page 
@@ -107,16 +106,22 @@ def usage():
 	-P      do extended stat transfert (rsync --progress)
 	-S      Complete sync source/dest (meaning erasing files on dest that are not on source)
 	-t	target directory
-	-v	Verbosity level X where X is 0,1,2,3 (0 is for this script verbose level) 
+	-v	Put program in verbose mode (not rsync use -V)
+	-V	Rsync Verbosity level X where X is 1,2 (1 means 1 line display and 2 full display) 
 	-z	enable compression
-	Possible settings for DEFAULT  in prop file are :	
+
+	Property file : 
+	It is possible to set options in a property file named  : ~/.syncmyfile.ini
+	Each line format is KEY = VALUE	
+	
+	General settings are in  [DEFAULT] section as  :	
 	CREATE on/off (as -c)
 	STATS on/off (as -P)
 	ZIP on/off or level (1 to 10) (as -z) 
 	DESTINATION path to destination directory
+	VERBOSE add additionnal informations on pb (like -v) 
 
-	Other section will be treated as source directory to process 
-	if no section directory are passed thrue argument all section will be processed
+	Other section will be treated as TAG for source directory to process 
 	if section are passed then only this one will be processed 
 	Possible settings for this options are 
 	SOURCE /path which is the source path 
@@ -132,7 +137,7 @@ def parseargs(argv,option):
 	if len(argv)==0:
 		return option
 	try:
-		opts, args = getopt.getopt(argv, "cdhnLp:PSt:v:z", ["help"])
+		opts, args = getopt.getopt(argv, "cdhnLp:PSt:vV:z", ["help"])
 	except getopt.GetoptError:
 		Message.fatal(PRGNAME,"Argument error",10)
 	#if Message.getlevel()=='debug':
@@ -160,9 +165,9 @@ def parseargs(argv,option):
 		elif opt == '-t':
 			option['destination']=arg
 		elif opt == '-v':
+			Message.setlevel('verbose') 
+		elif opt == '-V':
 			option['verbose']=str(arg)
-			if arg == '0' :
-				Message.setlevel('verbose') 
 		elif opt == '-z':
 			option['zip']='on'
 		else:
@@ -184,7 +189,7 @@ def backup_data(option,config):
 	found=0
 	Message.getlevel()
 	target={}
-	arguments='-ax --safe-links --links'
+	arguments='-ax --safe-links --links --itemize-changes'
 	destination=option['destination']
 	Message.verbose(PRGNAME,"output dir is set to "+destination)
 	if option['zip'] == 'off':
@@ -195,11 +200,6 @@ def backup_data(option,config):
 		arguments+=' -z'
 	else:
 		Message.fatal(PRGNAME,"option compress has invalid value "+option['zip']) 
-	if 'verbose' in option:
-		if option['verbose'] == '1':
-			arguments+=" -v" 
-		elif option['verbose'] == '2':
-			arguments+=" -v -v"
 
 	
 	#for section in config.sections():
@@ -211,7 +211,7 @@ def backup_data(option,config):
 			if not section in option['target']:
 				Message.debug(PRGNAME,"Skipping "+section+" is not in list")
 				continue
-		Message.info(PRGNAME,"New Section "+section)
+		Message.info(PRGNAME,"Syncing section "+section)
 		if not 'source' in config[section]:
 			Message.warning(PRGNAME,"section "+section+" has no source")
 			continue
@@ -232,44 +232,19 @@ def backup_data(option,config):
 			arguments+=' --delete'
 		
 		rsync="/usr/bin/rsync "+arguments+" "+optargs+" "+source+" "+destination
-		#run_simple(rsync)
-		#run_popen(rsync)
-		if option['verbose'] == '2' :
-			run_popen_full(rsync,time=1,verbose='full')	
-		elif option['verbose'] == '1':
-			log=open(LOGFILE,'w')
-			run_popen_full(rsync,time=1,log='log')
-			log.close()
-		else:
-			run_popen_full(rsync,time=1)
+		if 'verbose' in option:
+			if option['verbose'] == '1':
+				logfile=open(LOGFILE,'w')
+				run_popen_full(rsync,time=1,log='full',verbose='line')
+				logfile.write('fini\n')
+				logfile.close()
+			elif option['verbose'] == '2':
+				run_popen_full(rsync,time=1,verbose='full')	
+			else:
+				run_popen_full(rsync,time=1)	
 	if found == 0:
-		Message.warning(PRGNAME,"No valid section found")	
-
-def run_command(cmd,**option):
-	Message.verbose(PRGNAME,"Running "+cmd)
-	if 'simple' in option:
-		rc=run_simple(cmd)
-		return(rc)	
-	if 'popen' in option:
-		cmd=cmd.split()
-		if option['popen'] == 'shell':
-			rc=run_popen(cmd)
-			return(rc)			
-		else:
-			Message.error(PRGNAME,"option 'popen'")
-			return(9)
-
-def run_popen(cmd):
-	Message.verbose(PRGNAME,"Running "+cmd)
-	Message.debug(PRGNAME,"Attempting to run_popen"+cmd)
-	ps=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	stdout,stderr=ps.communicate()
-	if ps.returncode == 0:
-		print(stdout.decode("utf-8"))
-	else:
-		Message.debug(PRGNAME,"Error running command popen"+cmd.join())
-		Message.error(PRGNAME,"Error running popen"+stdout)
-		return(ps.returncode)
+		Message.warning(PRGNAME,"No valid section found")
+		end(0)	
 
 def run_popen_full(cmd,**option):
 	Message.verbose(PRGNAME,"Running "+cmd)
@@ -292,17 +267,22 @@ def run_popen_full(cmd,**option):
 	# Start processing command
 	ps=subprocess.Popen(cmd.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
+
+	# Verbose is either line, full or none
 	if 'verbose' in option:
 		verbose=option['verbose']
-		print(verbose)
 	else:
 		verbose='normal'
-
 
 	if 'log' in option:
 		log=option['log'] 
 	else:
 		log='none'
+
+	putfile=0
+	putdir=0 
+	delfile=0
+	changedobj=0
 
 	# Polling loop
 	while True:
@@ -317,11 +297,27 @@ def run_popen_full(cmd,**option):
 		except StopIteration:
 			break
 		count+=1
+		if verbose == 'none' :
+			continue
 		line=nextline.decode('utf-8').rstrip('\n')
-		if log == 'full':
-			log.write(line,'\n')
+		#if log == 'full':
+		#logfile.write(str(count),'\n')
+		#	logfile.write(line,'\n')
 		if len(line) == 0:
 			continue
+		operation=line[0]
+		filetype=line[1]
+		addinfo=line[2:11]
+		if operation == '>' and filetype == 'f':
+			putfile+=1
+		if operation == '*': 
+			delfile+=1
+		if operation == 'c':
+			if addinfo == '+++++++++':
+				putdir+=1
+			else:	
+				changedobj+=1	
+		line=line[11:]
 		if verbose == 'full':
 			print(line)
 			continue
@@ -336,13 +332,16 @@ def run_popen_full(cmd,**option):
 		if count % CLEAN_FREQ == 0:
 			print("\r"+delete,end='')
 		sys.stdout.flush()
-	sleep(2)
+	if not count == 0:
+		sleep(1)
+		sys.stdout.flush()
+		print()
 	stderr=ps.communicate()[1]
 	ret=ps.returncode
 	if ret == 0:
-		sys.stdout.flush()
-		print()
 		Message.info(PRGNAME,str(count)+" Files copied")
+		message=str("Files transfered {}, Dir transfered {}, deleted files {}, changed objects {}".format(putfile,putdir,delfile,changedobj))
+		Message.verbose(PRGNAME,message)
 	else:
 		print(stderr.decode("utf-8"))
 		Message.error(PRGNAME,"command did not end properly"+cmd)
@@ -353,7 +352,6 @@ def run_popen_full(cmd,**option):
 		timeend2=localtime()
 		diff=mktime(timeend2)-mktime(timestart2)
 		Message.info(PRGNAME,"Ending at "+now+" ("+str(diff)+" seconds)")
-	print()
 	return(ret)
 
 
@@ -387,7 +385,7 @@ else:
 		if cmd_exists(i) == False:
 			Message.fatal(PRGNAME,"Command "+i+" is not found")
 	""" initial values """
-	option={ 'create' : 'no', 'prompt' : 'yes', 'prop' : INIFILE , 'verbose' : '-1',
+	option={ 'create' : 'no', 'prompt' : 'yes', 'prop' : INIFILE , 'verbose' : 'normal',
 		'progress' : 'none', 'zip' : 'no', 'destination' : '' , 'target' : ''
 	}
 	config = configparser.ConfigParser()
