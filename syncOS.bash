@@ -122,6 +122,7 @@ sfdisk -d $__TARGET > ./$OUT2
 usage() {
 cat << fin
 $PRGNAME [-o] [-q] [ -F <FSTYPE> ] [ -t target dump dir ]  [ /dev/devicename OR LABEL ] || [-A] 
+$PRGNAME -R file.fsa
 Backup file sytem using fsarchiver, default is to backup all partition of $TARGETFSTYPE which are not mounted 
 	-A	Do all parition but mounted one backup
 	-d	debug mode
@@ -131,11 +132,43 @@ Backup file sytem using fsarchiver, default is to backup all partition of $TARGE
 	-o	Force overwrite when file exist
 	-P	Save the MBR and partition table
 	-q	Silent mode (to be done)
+	-R	Give restore command for file 
 	-t 	Target dir to write output file (if not specified $(pwd))
 	-z	Compression level (as for fsarchiver)
 fin
 }
 
+restore_file() {
+F=$1
+F=${F:=NULL}
+if [ $F == "NULL"   ];
+then
+	__print "ERROR" "$PRGNAME" "Wrong input file $F"
+	end	
+fi
+if [ ! -f $F ];
+then
+	__print "ERROR" "$PRGNAME" "Input file not found $F"
+	end	
+fi
+
+P=$(dirname $F)
+B=$(basename $F)
+SEP=$(echo $B |awk -F '.' '{print NF}')
+
+
+if [ $SEP -lt 3 ];
+then
+	__print "ERROR" "$PRGNAME" "Not enough field in $F"
+	end	
+fi
+archive=$(echo $B |cut -d '.' -f -$(( $SEP - 2)))
+dev=$(echo $B |awk -F '.' '{print $(NF-1)}')
+__print "INFO" "$PRGNAME" "To restore $archive use this command line :"
+echo "fsarchiver restfs $F  id=0,dest=/dev/$dev"
+
+
+}
 	
 TARGETDIR=$(pwd)
 TARGETDISK=/dev/sda
@@ -155,7 +188,7 @@ SOURCE=__NONE__
 PARTSAVE=0
 ALL=0 
 
-while getopts AdDF:hoqPt:z: sarg
+while getopts AdDF:hoqPR:t:z: sarg
 do
 case $sarg in
 	A)	ALL=1 ;;
@@ -168,6 +201,10 @@ case $sarg in
 	o)	OVERWRITE=1 ;;
 	q)	SILENT=1 ;;
 	P)	PARTSAVE=1 ;; 
+	R)	RESTORE=$OPTARG
+		restore_file $RESTORE 
+		end
+		;;
 	t)	TARGETDIR=$OPTARG ;;
 	z)	ZIPLEVEL=$OPTARG;;
         *)      echo "ERROR : $PRGNAME : Bad option or misusage"
@@ -309,7 +346,7 @@ do
 	fi
 	__LABEL=$(echo $__LABEL) 
 	__DEVICE=$(basename $i)
-	__TARGETFILE=$TARGETDIR/$__LABEL-$__DEVICE.fsa
+	__TARGETFILE=$TARGETDIR/$__LABEL.$__DEVICE.fsa
 	if [ -f $__TARGETFILE ] ;
 	then
 		if [ $OVERWRITE -ne 1 ]; 
