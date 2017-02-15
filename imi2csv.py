@@ -23,8 +23,8 @@ def print_if_el(dict,what):
   #if type(dict[what]) == 'list' :
     display=""
     for i in dict[what]:
-      display=display+","+i
-    print display
+      display=i+','
+    print display[:-1]
 
 list=d[d.keys()[0]]
 for line in list:
