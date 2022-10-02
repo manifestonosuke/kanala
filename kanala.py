@@ -15,6 +15,9 @@ parser.add_argument('-c','--count',action="store_true",help='Counting mode')
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
 args,noargs  = parser.parse_known_args()
 
+def DD(a):
+  print("DD {}".format(a))
+
 def sanitizeArgs(received):
   out=[]
   for i in received:
@@ -98,27 +101,35 @@ class ankiKanjiDeck():
     self.totallines=0
     self.matchword=0
     self.matchji=0
-    self.search=None
+    #self.search=None
+    self.search=[]
  
     if self.remain != []:
-      self.search=self.remain[0]
+      for i in self.remain:
+        this=self.isKanji(i)
+        self.search.append(this)
       filelist,match=self.load_data()
     else:
       filelist,match=self.load_data()
     if args.count == True:
       self.count_occurence(filelist)
       exit()
-
-    if match != []:
+    if match.keys() != []:
       for each in match:
         if each == None:
           print('None　です')
         else:
-          self.printColor(each.strip(),self.search,strippar=True)
-      print("字 match : {}, 書方 match {}".format(self.matchword,self.matchji))
+          for i in match[each]:
+            #self.printColor(match[each][0].strip(),each,strippar=True)
+            self.printColor(i.strip(),each,strippar=True)
+      print("字 match : {}, 書方 match {} ({} lines in the file)".format(self.matchword,self.matchji,self.totallines))
     else:
       print("No match for {}".format(self.remain[0]))
-  
+
+# In dev 
+  def isKanji(self,achar):
+    return(achar)
+ 
   def printColor(self,s,m,strippar=False):
     S=''
     par=False
@@ -168,31 +179,40 @@ class ankiKanjiDeck():
   3/4 : key/bush
   last : addittional info
   '''
-  def load_data(self):
+  def load_data(self,queryonly=True):
     logfd=openfile(LOGFILE,"w+")
     if args.verbose:
-       print("load data search  {} ".format(search))
+       print("load data search  {} ".format(self.search))
     l={}
-    match=[]
+    match={}
     for line in self.fd.readlines():
       self.totallines+=1
       thisline=line.split("\t")
       self.verifLine(thisline)
       word=thisline[1]
       ji=thisline[2]
-      if self.search != None:
-        pos=line.find(self.search)
-        if pos > -1:
-          match.append(line)
-        if self.search in word:
-          self.matchword+=1 
-        if self.search in ji:
-          self.matchji+=1 
-      if args.verbose:
-         print("This word {} : {}".format(thisline[0],thisline[1]))
+      #if args.verbose:
+      #   print("分析 {} : {}".format(thisline[0],thisline[1]))
+      for i in self.search:
+        #if i != []:
+        if i != '':
+          pos=line.find(i)
+          if pos > -1:
+            if i not in match.keys():
+              match[i]=[]
+            if args.verbose:
+              print("Match pos {} {}".format(pos,i))
+          if i in word:
+            self.matchword+=1 
+            match[i].append(line)
+            continue
+          if i in ji:
+            self.matchji+=1 
+            match[i].append(line)
+            continue
+          if queryonly == False:
+            match[i].append(line)
       for c in word:
-        if args.verbose:
-          print("THIS {} {}".format(c,word))
         u=c.encode("unicode-escape")
         string="{}:{}\n".format(c,u)
         logfd.write(string)
