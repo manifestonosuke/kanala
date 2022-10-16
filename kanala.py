@@ -9,14 +9,15 @@ LOGFILE="/tmp/kanala.out"
 FILE='knotes.txt'
 
 parser = argparse.ArgumentParser(description='このプログラムの説明')
-parser.add_argument('-j','--joyo',action="store_true",help='print joyo kanji')
+parser.add_argument('-j','--joyo',action="store_true",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-v','--verbose',action="store_true",help='Verbose mode')
-parser.add_argument('-c','--count',action="store_true",help='Counting mode')
+parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
 args,noargs  = parser.parse_known_args()
 
-def DD(a):
-  print("DD {}".format(a))
+def DD(a,debug=False):
+  if debug:
+    print("DD {}".format(a))
 
 def sanitizeArgs(received):
   out=[]
@@ -55,7 +56,7 @@ if args.debugdebug:
   print('output {}'.format(j))
   exit(0)
 
-def get_joyo_list(url="http://x0213.org/joyo-kanji-code/joyo-kanji-code-u.csv"):
+def get_joyo_list(url="http://x0213.org/joyo-kanji-code/joyo-kanji-code-u.csv",out="/tmp/joyo"):
   try: 
     r = requests.get(url)
   except BaseException as e:
@@ -66,18 +67,8 @@ def get_joyo_list(url="http://x0213.org/joyo-kanji-code/joyo-kanji-code-u.csv"):
   else:
     if args.verbose:
       print("Got data from {}".format(url))
-  return r
-
-def print_joyo_list():
-  data=get_joyo_list()
-  for line in data:
-    l=line.decode()
-    if l[0] == "#":
-      print("COMMENT")
-      continue
-    print(l) 
-    print()
-  exit(0)
+  open(out, "wb").write(r.content)
+  return(out) 
 
 def openfile(file,op="r"):
   try : 
@@ -87,16 +78,29 @@ def openfile(file,op="r"):
     print("can't open file {}".format(file))
     exit(9)
 
+# get list or string and put in list
+def explode(obj):
+  b=[]
+  for i in obj:
+    for j in i:
+      if j not in b:
+        b.append(j)
+  return(b)
+
 
 class ankiKanjiDeck():
   def __init__(self,args,noargs):
-    if args.joyo:
-      print_joyo_list()
-      exit()
     self.args=args
     self.noargs=noargs
-    self.file=noargs[0]
+    if self.args.joyo:
+      self.print_joyo_list()
+      exit()
+    if len(noargs) < 1:
+      print("No args No result")
+      exit(0)
+    self.arg0=noargs[0]
     self.remain=noargs[1:]
+    self.file=self.arg0
     self.fd=openfile(self.file)
     self.totallines=0
     self.matchword=0
@@ -122,14 +126,14 @@ class ankiKanjiDeck():
           for i in match[each]:
             #self.printColor(match[each][0].strip(),each,strippar=True)
             self.printColor(i.strip(),each,strippar=True)
-      print("字 match : {}, 書方 match {} ({} lines in the file)".format(self.matchword,self.matchji,self.totallines))
+      print("字 match : {}, 書方 match {} ({} lines in the file)".format(self.matchji,self.matchword,self.totallines))
     else:
       print("No match for {}".format(self.remain[0]))
 
 # In dev 
   def isKanji(self,achar):
     return(achar)
- 
+
   def printColor(self,s,m,strippar=False):
     S=''
     par=False
@@ -171,7 +175,42 @@ class ankiKanjiDeck():
       print("{:<4} occurence  [ {} 字 ] {}".format(i,len(s[i]),s[i]))
     print("Total {} 字".format(total))
     exit()
-  
+ 
+  def print_joyo_list(self):
+    #print("print_joyo_list, search : {}".format(self.noargs))
+    data=get_joyo_list()
+    search=0
+    joyo=[]
+    if self.noargs != []:
+      search=1
+      searchme=explode(self.noargs)
+    j=open(data)
+    count=0
+    for line in j.readlines():
+    #for line in data:
+      #l=line.decode("utf-8","replace")
+      l=line
+      if l[0] == "#":
+        continue
+      #print("L {}".format(l.rstrip())) 
+      #print("{}".format(l[0]),end=''),
+      if search == 0:
+        print("{}".format(l[0]))
+      else:
+        if l[0] in searchme:
+          #print("{}".format(l[0]))
+          joyo.append(l[0])
+          searchme.remove(l[0])
+      count+=1
+    if search == 1:
+      if joyo != []:
+        print("常用内 {}".format(joyo))
+      if searchme != []: 
+        print("常用外 {}".format(searchme))
+    print("Total {}".format(count))
+    exit(0)
+
+ 
   '''
   0 : search info
   1 : answer 
@@ -201,17 +240,16 @@ class ankiKanjiDeck():
             if i not in match.keys():
               match[i]=[]
             if args.verbose:
-              print("Match pos {} {}".format(pos,i))
-          if i in word:
-            self.matchword+=1 
-            match[i].append(line)
-            continue
-          if i in ji:
-            self.matchji+=1 
-            match[i].append(line)
-            continue
-          if queryonly == False:
-            match[i].append(line)
+              print("Match pos {} {} -> {}".format(pos,i,line))
+            if i in word:
+              self.matchword+=1 
+              match[i].append(line)
+              # if letter in word may be the key
+              if i in ji:
+                self.matchji+=1 
+              continue
+            if queryonly == False:
+              match[i].append(line)
       for c in word:
         u=c.encode("unicode-escape")
         string="{}:{}\n".format(c,u)
@@ -235,8 +273,5 @@ def main():
 if __name__ != '__main__':
   print('loaded')
 else:
-  if len(noargs) < 1:
-    print("No args No result")
-    exit(0)
   main()
 
