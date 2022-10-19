@@ -15,9 +15,9 @@ parser.add_argument('-c','--count',action="store_true",help='Count number of occ
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
 args,noargs  = parser.parse_known_args()
 
-def DD(a,debug=False):
+def DD(a,debug=True,msg=""):
   if debug:
-    print("DD {}".format(a))
+    print("{}DD {}".format(msg,a))
 
 def sanitizeArgs(received):
   out=[]
@@ -107,32 +107,63 @@ class ankiKanjiDeck():
     self.matchji=0
     #self.search=None
     self.search=[]
+    self.match={}
+    self.nomatch=[]
  
     if self.remain != []:
+      self.remain=self.sanitise(self.remain)
       for i in self.remain:
-        this=self.isKanji(i)
-        self.search.append(this)
-      filelist,match=self.load_data()
-    else:
-      filelist,match=self.load_data()
+        if self.isKanji(i):
+          self.search.append(i)
+      #filelist,match=self.load_data()
+    #else:
+    filelist=self.load_data()
     if args.count == True:
       self.count_occurence(filelist)
       exit()
-    if match.keys() != []:
-      for each in match:
+    if self.match.keys() != []:
+      matchlist=[]
+      #DD(self.match)
+      for each in self.match:
+        if self.match[each] == []:
+          continue
         if each == None:
           print('None　です')
         else:
-          for i in match[each]:
-            #self.printColor(match[each][0].strip(),each,strippar=True)
+          for i in self.match[each]:
+            #arr=i.split()
+            #str="{:<10}{}\t{}\t{}".format(arr[0],arr[1],arr[2],arr[3])
+            #self.printColor(str,each,strippar=True)
+            #self.printColor(self.match[each][0].strip(),each,strippar=True)
             self.printColor(i.strip(),each,strippar=True)
+        if i not in matchlist and each != []:
+          matchlist.append(each) 
       print("字 match : {}, 書方 match {} ({} lines in the file)".format(self.matchji,self.matchword,self.totallines))
-    else:
-      print("No match for {}".format(self.remain[0]))
+      if self.nomatch != []:
+        print("No macth for : ".format(self.nomatch))
+    self.nomatch=self.remain
+    for i in self.nomatch:
+      if i in matchlist:
+        self.nomatch.remove(i)
+    if self.nomatch != []:
+      print("No match for {}".format(self.nomatch))
+      print("Match for {}".format(matchlist))
 
-# In dev 
+  def sanitise(self,blob):
+    l=[]
+    for i in blob:
+      if len(i) > 1:
+        for j in i:
+          if not j in l:
+            l.append(j)
+      else:
+        if not i in l:
+          l.append(i)
+    return(l)   
+
+  # In dev 
   def isKanji(self,achar):
-    return(achar)
+    return(True)
 
   def printColor(self,s,m,strippar=False):
     S=''
@@ -223,7 +254,6 @@ class ankiKanjiDeck():
     if args.verbose:
        print("load data search  {} ".format(self.search))
     l={}
-    match={}
     for line in self.fd.readlines():
       self.totallines+=1
       thisline=line.split("\t")
@@ -237,19 +267,19 @@ class ankiKanjiDeck():
         if i != '':
           pos=line.find(i)
           if pos > -1:
-            if i not in match.keys():
-              match[i]=[]
+            if i not in self.match.keys():
+              self.match[i]=[]
             if args.verbose:
               print("Match pos {} {} -> {}".format(pos,i,line))
             if i in word:
               self.matchword+=1 
-              match[i].append(line)
+              self.match[i].append(line)
               # if letter in word may be the key
               if i in ji:
                 self.matchji+=1 
               continue
             if queryonly == False:
-              match[i].append(line)
+              self.match[i].append(line)
       for c in word:
         u=c.encode("unicode-escape")
         string="{}:{}\n".format(c,u)
@@ -258,7 +288,7 @@ class ankiKanjiDeck():
           l[c]+=1
         else:
           l[c]=1
-    return(l,match)
+    return(l)
 
   def verifLine(self,line,format='csv'):
     csvminlen=4
