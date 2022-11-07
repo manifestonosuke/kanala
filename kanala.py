@@ -3,6 +3,7 @@
 import sys
 import argparse
 import requests
+import json
 from rich import print as prich
 
 LOGFILE="/tmp/kanala.out"
@@ -92,12 +93,6 @@ class ankiKanjiDeck():
   def __init__(self,args,noargs):
     self.args=args
     self.noargs=noargs
-    if self.args.joyo:
-      self.print_joyo_list()
-      exit()
-    if len(noargs) < 1:
-      print("No args No result")
-      exit(0)
     self.arg0=noargs[0]
     self.remain=noargs[1:]
     self.file=self.arg0
@@ -110,18 +105,43 @@ class ankiKanjiDeck():
     self.match={}
     self.nomatch=[]
  
+    if len(noargs) < 1:
+      print("No args No result")
+      exit(0) 
+
+    # joyo queries  
+    if self.args.joyo:
+      if self.remain != []:
+        self.remain=self.sanitise(self.remain)
+        self.isJoyo()
+      else:
+        self.print_joyo_list()
+      exit()
+  
+    # Load remaining args clean them and build list for search
     if self.remain != []:
       self.remain=self.sanitise(self.remain)
       for i in self.remain:
         if self.isKanji(i):
           self.search.append(i)
       #filelist,match=self.load_data()
-    #else:
+   
+   
     filelist=self.load_data()
+
     if args.count == True:
       self.count_occurence(filelist)
       exit()
-    if self.match.keys() != []:
+
+    if self.remain == []:
+      #totalkanji=set()
+      #totalkanji=filelist.keys()
+      #print(len(filelist.keys()))
+      #print(len(totalkanji))
+      print("Total lines : {}, Total uniq kanji in words {}".format(self.totallines,len(filelist.keys())))
+      exit(0)
+    
+    if self.match.keys() != {}:
       matchlist=[]
       #DD(self.match)
       for each in self.match:
@@ -161,6 +181,36 @@ class ankiKanjiDeck():
           l.append(i)
     return(l)   
 
+  def isJoyo(self,silent=False):
+    url='https://kanjiapi.dev/v1/kanji/'
+    l=self.remain
+    res={'joyo':[],'nonjoyo':[],'error':[]}
+    for i in l:
+      u=url+i
+      try: 
+        data = requests.get(u)
+      except:
+        print("ERROR")
+        exit(9)
+      print(u)
+      j=json.loads(data.text)
+      if data.status_code != 200:
+        print("{} not a 漢字. Can be a system error # {}".format(i,data.status_code))
+        continue
+      if j['grade'] == None:
+        print("unkow class for {} \n :  {}".format(i,data.status_code,j))
+        res['error'].append(i)
+        continue
+      if j['grade'] <= 8:
+        print("{} is a 常用漢字 grade {}".format(i,j['grade']))
+        res['joyo'].append(i)
+      else:  
+        print("{} is not a  常用漢字 grade {}".format(i,j['grade']))
+        res['nonjoyo'].append(i)
+    return(res) 
+        
+
+       
   # In dev 
   def isKanji(self,achar):
     return(True)
@@ -208,23 +258,18 @@ class ankiKanjiDeck():
     exit()
  
   def print_joyo_list(self):
-    #print("print_joyo_list, search : {}".format(self.noargs))
     data=get_joyo_list()
     search=0
     joyo=[]
-    if self.noargs != []:
+    if self.remain != []:
       search=1
-      searchme=explode(self.noargs)
+      searchme=explode(self.remain)
     j=open(data)
     count=0
     for line in j.readlines():
-    #for line in data:
-      #l=line.decode("utf-8","replace")
       l=line
       if l[0] == "#":
         continue
-      #print("L {}".format(l.rstrip())) 
-      #print("{}".format(l[0]),end=''),
       if search == 0:
         print("{}".format(l[0]))
       else:
@@ -247,7 +292,7 @@ class ankiKanjiDeck():
   1 : answer 
   2 : kanji
   3/4 : key/bush
-  last : addittional info
+  last : additional info
   '''
   def load_data(self,queryonly=True):
     logfd=openfile(LOGFILE,"w+")
