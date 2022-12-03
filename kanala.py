@@ -155,10 +155,6 @@ class ankiKanjiDeck():
           print('None　です')
         else:
           for i in self.match[each]:
-            #arr=i.split()
-            #str="{:<10}{}\t{}\t{}".format(arr[0],arr[1],arr[2],arr[3])
-            #self.printColor(str,each,strippar=True)
-            #self.printColor(self.match[each][0].strip(),each,strippar=True)
             self.printColor(i.strip(),each,strippar=True)
         if i not in matchlist and each != []:
           matchlist.append(each) 
@@ -290,56 +286,6 @@ class ankiKanjiDeck():
     exit(0)
 
  
-  '''
-  0 : search info
-  1 : answer 
-  2 : kanji
-  3/4 : key/bush
-  last : additional info
-  '''
-  def load_data(self,queryonly=True):
-    logfd=openfile(LOGFILE,"w+")
-    self.totallines=0
-    if args.verbose:
-       print("load data search  {} ".format(self.search))
-    l={}
-    for line in self.fd.readlines():
-      self.totallines+=1
-      thisline=line.split("\t")
-      self.verifLine(thisline)
-      word=thisline[1]
-      ji=thisline[2]
-      #if args.verbose:
-      #   print("分析 {} : {}".format(thisline[0],thisline[1]))
-      for i in self.search:
-        #if i != []:
-        if i != '':
-          pos=line.find(i)
-          if pos > -1:
-            if i not in self.match.keys():
-              self.match[i]=[]
-            if args.verbose:
-              print("Match pos {} {} -> {}".format(pos,i,line))
-            if i in word:
-              self.matchword+=1 
-              self.match[i].append(line)
-              # if letter in word may be the key
-              if i in ji:
-                self.matchji+=1 
-              continue
-            if queryonly == False:
-              self.match[i].append(line)
-      for c in word:
-        u=c.encode("unicode-escape")
-        string="{}:{}\n".format(c,u)
-        logfd.write(string)
-        if c in l.keys():
-          l[c]+=1
-        else:
-          l[c]=1
-    logfd.close()
-    return(l)
-
   def verifLine(self,line,format='csv'):
     csvminlen=4
     if format == 'csv' : 
@@ -347,13 +293,6 @@ class ankiKanjiDeck():
         print('can\'t analyse following line, is input format ok :\n{}'.format(line))
         exit(1)
 
-  '''
-  0 : search info
-  1 : answer 
-  2 : kanji
-  3/4 : key/bush
-  last : additional info
-  '''
   # open file and put data in sets
   # jiSet = the kanji of the card (2 kanjis/carte field 2 and 4)
   # searchSet = the kanji to search
