@@ -93,45 +93,49 @@ class ankiKanjiDeck():
   def __init__(self,args,noargs):
     self.args=args
     self.noargs=noargs
-    self.arg0=noargs[0]
-    self.remain=noargs[1:]
-    self.file=self.arg0
-    self.fd=openfile(self.file)
-    self.totallines=0
-    self.matchword=0
-    self.matchji=0
-    #self.search=None
-    self.search=[]
-    self.match={}
-    self.nomatch=[]
- 
-    if len(noargs) < 1:
-      print("No args No result")
-      exit(0) 
 
     # joyo queries  
     if self.args.joyo:
+      self.remain=noargs
       if self.remain != []:
         self.remain=self.sanitise(self.remain)
         self.isJoyo()
       else:
         self.print_joyo_list()
       exit()
-  
+ 
+    # not joyo need file which is 1st arg remaining are kanjis
+    if len(noargs) < 1:
+      print("No args No result")
+      exit(0) 
+    self.arg0=noargs[0]
+    self.file=self.arg0
+    self.fd=openfile(self.file)
+    self.remain=noargs[1:]
+    
+    self.totallines=0
+    self.matchword=0
+    self.matchji=0
+    self.search=[]
+    self.match={}
+    self.nomatch=[]
+ 
+    
     # Load remaining args clean them and build list for search
     if self.remain != []:
       self.remain=self.sanitise(self.remain)
       for i in self.remain:
         if self.isKanji(i):
           self.search.append(i)
-      #filelist,match=self.load_data()
-   
-   
-    filelist=self.load_data()
 
+    filelist=self.load_data2()
+   
     if args.count == True:
       self.count_occurence(filelist)
+      print("Total lines : {}".format(self.totallines))
       exit()
+
+
 
     if self.remain == []:
       #totalkanji=set()
@@ -255,7 +259,6 @@ class ankiKanjiDeck():
     for i in sortedkey:
       print("{:<4} occurence  [ {} 字 ] {}".format(i,len(s[i]),s[i]))
     print("Total {} 字".format(total))
-    exit()
  
   def print_joyo_list(self):
     data=get_joyo_list()
@@ -296,6 +299,7 @@ class ankiKanjiDeck():
   '''
   def load_data(self,queryonly=True):
     logfd=openfile(LOGFILE,"w+")
+    self.totallines=0
     if args.verbose:
        print("load data search  {} ".format(self.search))
     l={}
@@ -333,6 +337,7 @@ class ankiKanjiDeck():
           l[c]+=1
         else:
           l[c]=1
+    logfd.close()
     return(l)
 
   def verifLine(self,line,format='csv'):
@@ -342,6 +347,62 @@ class ankiKanjiDeck():
         print('can\'t analyse following line, is input format ok :\n{}'.format(line))
         exit(1)
 
+  '''
+  0 : search info
+  1 : answer 
+  2 : kanji
+  3/4 : key/bush
+  last : additional info
+  '''
+  # open file and put data in sets
+  # jiSet = the kanji of the card (2 kanjis/carte field 2 and 4)
+  # searchSet = the kanji to search
+  # It writes all unicode kanji to output file
+  def load_data2(self,queryonly=True):
+    logfd=openfile(LOGFILE,"w+")
+    self.totallines=0
+    jiSet=set()
+    searchSet=set()
+    matched={}
+    r={}
+    jicount={}
+    self.fd.seek(0,0)
+    if args.verbose:
+       print("load data2 search  {} ".format(self.search))
+    for i in self.search:
+      searchSet.add(i)
+    for line in self.fd.readlines():
+      word=""
+      self.totallines+=1
+      thisline=line.split("\t")
+      self.verifLine(thisline)
+      for i in thisline[2],thisline[4]:
+        if len(i) > 0:
+          try: word+=i[0]
+          except IndexError:
+            print("can't parse {}".format(thisline))
+            exit(0) 
+      if len(word) > 1:
+        if word[0] == word[1]:
+          if args.verbose:
+            print("Both ji are same -> {}".format(word))
+      if args.verbose:
+        print("Current line {} ".format(word))
+      for i in word:
+        jiSet.add(i)
+        if i in self.search:
+          if i not in self.match.keys():
+            self.match[i]=[]
+          self.matchword+=1
+          self.match[i].append(line)
+          if i not in r.keys():
+            r[i]=[]
+          r[i].append(thisline)
+        if i in jicount.keys():
+          jicount[i]+=1
+        else:
+          jicount[i]=1
+    return(jicount)
 
 def main():
   kdeck=ankiKanjiDeck(args,noargs)
