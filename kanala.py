@@ -10,7 +10,8 @@ LOGFILE="/tmp/kanala.out"
 FILE='knotes.txt'
 
 parser = argparse.ArgumentParser(description='このプログラムの説明')
-parser.add_argument('-j','--joyo',action="store_true",help='print joyo kanji, if other args they\'ll be matched against joyo list')
+#parser.add_argument('-j','--joyo',action="store_true",help='print joyo kanji, if other args they\'ll be matched against joyo list')
+parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-v','--verbose',action="store_true",help='Verbose mode')
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
@@ -95,10 +96,9 @@ class ankiKanjiDeck():
     self.noargs=noargs
 
     # joyo queries  
-    if self.args.joyo:
-      self.remain=noargs
+    if self.args.joyo != None:
+      self.remain=self.sanitise(self.args.joyo)
       if self.remain != []:
-        self.remain=self.sanitise(self.remain)
         self.isJoyo()
       else:
         self.print_joyo_list()
@@ -119,6 +119,9 @@ class ankiKanjiDeck():
     self.search=[]
     self.match={}
     self.nomatch=[]
+
+    self.searchSet=set()
+    self.matchSet=set()
  
     
     # Load remaining args clean them and build list for search
@@ -126,7 +129,7 @@ class ankiKanjiDeck():
       self.remain=self.sanitise(self.remain)
       for i in self.remain:
         if self.isKanji(i):
-          self.search.append(i)
+          self.searchSet.add(i)
 
     filelist=self.load_data2()
    
@@ -158,16 +161,18 @@ class ankiKanjiDeck():
             self.printColor(i.strip(),each,strippar=True)
         if i not in matchlist and each != []:
           matchlist.append(each) 
-      print("字 match : {}, 書方 match {} ({} lines in the file)".format(self.matchji,self.matchword,self.totallines))
-      if self.nomatch != []:
-        print("No macth for : ".format(self.nomatch))
-    self.nomatch=self.remain
-    for i in self.nomatch:
-      if i in matchlist:
-        self.nomatch.remove(i)
-    if self.nomatch != []:
-      print("No match for {}".format(self.nomatch))
-      print("Match for {}".format(matchlist))
+      #print("字 match : {}, 書方 match {} ({} lines in the file)".format(self.matchji,self.matchword,self.totallines))
+      print("字 match : {} ({} lines in the file)".format(self.matchword,self.totallines))
+    #self.nomatch=self.remain
+    #for i in self.nomatch:
+    #  if i in matchlist:
+    #    self.nomatch.remove(i)
+    #if self.nomatch != []:
+    #  print("No match for {}".format(self.nomatch))
+    #  print("Match for {}".format(matchlist))
+    if not len(self.searchSet-self.matchSet) == 0:
+      print("No match for {}".format(self.searchSet-self.matchSet))
+    print("Match for {}".format(self.matchSet))
 
   def sanitise(self,blob):
     l=[]
@@ -192,20 +197,20 @@ class ankiKanjiDeck():
       except:
         print("ERROR")
         exit(9)
-      print(u)
       j=json.loads(data.text)
       if data.status_code != 200:
-        print("{} not a 漢字. Can be a system error # {}".format(i,data.status_code))
+        print("{} not a 漢字. Can be a system error # {} [{}]".format(i,data.status_code,u))
         continue
       if j['grade'] == None:
-        print("unkow class for {} \n :  {}".format(i,data.status_code,j))
+        #print("unkow class for {} (http code {} -> {}) :\n  {} ".format(i,data.status_code,u,j))
+        print("unkow class for {} [{}] (http code {})".format(i,u,data.status_code))
         res['error'].append(i)
         continue
       if j['grade'] <= 8:
-        print("{} is a 常用漢字 grade {}".format(i,j['grade']))
+        print("{} is a 常用漢字 grade {} [{}]".format(i,j['grade'],u))
         res['joyo'].append(i)
       else:  
-        print("{} is not a  常用漢字 grade {}".format(i,j['grade']))
+        print("{} is not a  常用漢字 grade {}[{}]".format(i,j['grade'],u))
         res['nonjoyo'].append(i)
     return(res) 
         
@@ -294,22 +299,16 @@ class ankiKanjiDeck():
         exit(1)
 
   # open file and put data in sets
-  # jiSet = the kanji of the card (2 kanjis/carte field 2 and 4)
-  # searchSet = the kanji to search
   # It writes all unicode kanji to output file
   def load_data2(self,queryonly=True):
     logfd=openfile(LOGFILE,"w+")
     self.totallines=0
-    jiSet=set()
-    searchSet=set()
     matched={}
     r={}
     jicount={}
     self.fd.seek(0,0)
     if args.verbose:
-       print("load data2 search  {} ".format(self.search))
-    for i in self.search:
-      searchSet.add(i)
+       print("load data2 search  {} ".format(self.searchSet))
     for line in self.fd.readlines():
       word=""
       self.totallines+=1
@@ -328,8 +327,8 @@ class ankiKanjiDeck():
       if args.verbose:
         print("Current line {} ".format(word))
       for i in word:
-        jiSet.add(i)
-        if i in self.search:
+        if i in self.searchSet:
+          self.matchSet.add(i)
           if i not in self.match.keys():
             self.match[i]=[]
           self.matchword+=1
