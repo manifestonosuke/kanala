@@ -10,8 +10,8 @@ LOGFILE="/tmp/kanala.out"
 FILE='knotes.txt'
 
 parser = argparse.ArgumentParser(description='このプログラムの説明')
-#parser.add_argument('-j','--joyo',action="store_true",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
+parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
 parser.add_argument('-v','--verbose',action="store_true",help='Verbose mode')
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
@@ -89,6 +89,11 @@ def explode(obj):
         b.append(j)
   return(b)
 
+def set2Str(set):
+  s=""
+  for i in set:
+    s+=i
+  return(s)  
 
 class ankiKanjiDeck():
   def __init__(self,args,noargs):
@@ -122,6 +127,8 @@ class ankiKanjiDeck():
 
     self.searchSet=set()
     self.matchSet=set()
+    self.allJiSet=set()
+    self.joyoSet=set()
  
     
     # Load remaining args clean them and build list for search
@@ -137,8 +144,15 @@ class ankiKanjiDeck():
       self.count_occurence(filelist)
       print("Total lines : {}".format(self.totallines))
       exit()
-
-
+ 
+    if args.joyocheck == True:
+      self.getJoyo()
+      ctr=0
+      for i in self.joyoSet-self.allJiSet:
+        print(i,end='')
+        ctr+=1
+      print("\nNumber of chars {}".format(ctr))
+      exit()
 
     if self.remain == []:
       #totalkanji=set()
@@ -171,8 +185,13 @@ class ankiKanjiDeck():
     #  print("No match for {}".format(self.nomatch))
     #  print("Match for {}".format(matchlist))
     if not len(self.searchSet-self.matchSet) == 0:
-      print("No match for {}".format(self.searchSet-self.matchSet))
-    print("Match for {}".format(self.matchSet))
+      #print("No match for {}".format(self.searchSet-self.matchSet))
+      s=set2Str(self.searchSet-self.matchSet)
+      print("No match for {}".format(s))
+    #print("Match for {}".format(self.matchSet))
+    s=set2Str(self.matchSet) 
+    print("Match for {}".format(s))
+
 
   def sanitise(self,blob):
     l=[]
@@ -185,6 +204,18 @@ class ankiKanjiDeck():
         if not i in l:
           l.append(i)
     return(l)   
+
+  def getJoyo(self):
+    u="https://kanjiapi.dev/v1/kanji/joyo"
+    try: 
+      data = requests.get(u)
+    except: 
+      print("ERROR")
+      exit(9)
+    j=json.loads(data.text)
+    for i in j:
+      self.joyoSet.add(i) 
+
 
   def isJoyo(self,silent=False):
     url='https://kanjiapi.dev/v1/kanji/'
@@ -327,6 +358,7 @@ class ankiKanjiDeck():
       if args.verbose:
         print("Current line {} ".format(word))
       for i in word:
+        self.allJiSet.add(i)
         if i in self.searchSet:
           self.matchSet.add(i)
           if i not in self.match.keys():
