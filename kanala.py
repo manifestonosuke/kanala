@@ -217,21 +217,28 @@ class ankiKanjiDeck():
       self.joyoSet.add(i) 
 
 
-  def isJoyo(self,silent=False):
+  def isJoyo(self,silent=False,fileout="/tmp/joyo.out"):
     url='https://kanjiapi.dev/v1/kanji/'
     l=self.remain
     res={'joyo':[],'nonjoyo':[],'error':[]}
+    try: 
+      fd=open(fileout,"a")
+    except: 
+      print("Cant open log file {}".format(fileout))
+      fileout="/dev/null"
+      fd=open(fileout,"a")
     for i in l:
       u=url+i
       try: 
         data = requests.get(u)
       except:
-        print("ERROR")
+        print("Error : cannot get url {}".format(url))
         exit(9)
       j=json.loads(data.text)
       if data.status_code != 200:
         print("{} not a 漢字. Can be a system error # {} [{}]".format(i,data.status_code,u))
         continue
+      fd.write(str(j))
       if j['grade'] == None:
         #print("unkow class for {} (http code {} -> {}) :\n  {} ".format(i,data.status_code,u,j))
         print("unkow class for {} [{}] (http code {})".format(i,u,data.status_code))
