@@ -10,12 +10,15 @@ LOGFILE="/tmp/kanala.out"
 FILE='knotes.txt'
 
 parser = argparse.ArgumentParser(description='このプログラムの説明')
-parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
-parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
-parser.add_argument('-v','--verbose',action="store_true",help='Verbose mode')
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
+parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
+parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
+parser.add_argument('-l','--list',action="store_true",help='Use list format (short) for output. usable in word option')
+parser.add_argument('-v','--verbose',action="store_true",help='Verbose mode')
+parser.add_argument('-w','--word',action="store_true",help='Check for words including this kanji(s)')
 args,noargs  = parser.parse_known_args()
+#print("{}:::::::{}".format(args,noargs))
 
 def DD(a,debug=True,msg=""):
   if debug:
@@ -381,10 +384,61 @@ class ankiKanjiDeck():
           jicount[i]=1
     return(jicount)
 
+def getwordlist(kanjis,short,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
+    count=0
+    LIM=100
+    match={}
+    pattern=str(kanjis)
+    try: 
+      fd=open(file,"r")
+    except: 
+      print("Cant open vocabulary file {}".format(file))
+      exit()
+    try:
+      # this is the banner
+      fd.readline() 
+    except:
+      print("Cant read vocabulary file {}".format(file))
+      exit()
+    while True:
+      l=fd.readline()
+      if not l:
+        break
+      L=l.split('\t')
+      if L[5] in "漢混":
+        if len(L[2]) >= 2:
+          for i in pattern:
+            if i in L[2]:
+              if i not in match.keys():
+                match[i]={}
+              #{print $3,$2,$8}}}'| sort -k 3 -n
+              value=1000000
+              for i in range(8,54):
+                if L[i] != '':
+                  value=L[i]
+                  break
+              #match[i][value]=[L[2],L[1]]
+              if short == True:
+                print("{} ".format(L[2]),end="")
+              else:
+                if i != 8:
+                  print("{:<6s} {:<15s} {:<15s}*".format(L[2],L[1],value))
+                else:
+                  print("{:<6s} {:<15s} {:<15s}".format(L[2],L[1],value))
+              count+=1
+        if count >= LIM:
+          print(match)
+          exit(0)
+    if short:
+      print("")  
+
 def main():
   kdeck=ankiKanjiDeck(args,noargs)
 if __name__ != '__main__':
   print('loaded')
 else:
-  main()
+  if args.word==True:
+    getwordlist(noargs,args.list)
+  else:
+    main()
 
