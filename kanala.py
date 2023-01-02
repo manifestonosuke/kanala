@@ -419,12 +419,12 @@ def getwordlist(kanjis,short,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencyl
                   break
               #match[i][value]=[L[2],L[1]]
               if short == True:
-                print("{} ".format(L[2]),end="")
+                print("{}　".format(L[2]),end="")
               else:
                 if i != 8:
-                  print("{:<6s} {:<15s} {:<15s}*".format(L[2],L[1],value))
+                  print("{:<9s}: {:<10s}: {:>15s}*".format(L[2],L[1],value))
                 else:
-                  print("{:<6s} {:<15s} {:<15s}".format(L[2],L[1],value))
+                  print("{:<9s}: {:<10s}: {:>15s}".format(L[2],L[1],value))
               count+=1
         if count >= LIM:
           print(match)
