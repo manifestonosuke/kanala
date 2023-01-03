@@ -162,7 +162,7 @@ class ankiKanjiDeck():
       #totalkanji=filelist.keys()
       #print(len(filelist.keys()))
       #print(len(totalkanji))
-      print("Total lines : {}, Total uniq kanji in words {}".format(self.totallines,len(filelist.keys())))
+      print("Total lines : {}, Total uniq kanji in words {}. Ratio {:,.4f}".format(self.totallines,len(filelist.keys()),self.totallines/len(filelist.keys())))
       exit(0)
     
     if self.match.keys() != {}:
