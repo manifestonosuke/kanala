@@ -127,6 +127,7 @@ class ankiKanjiDeck():
     self.search=[]
     self.match={}
     self.nomatch=[]
+    self.doublon=[]
 
     self.searchSet=set()
     self.matchSet=set()
@@ -163,6 +164,9 @@ class ankiKanjiDeck():
       #print(len(filelist.keys()))
       #print(len(totalkanji))
       print("Total lines : {}, Total uniq kanji in words {}. Ratio {:,.4f}".format(self.totallines,len(filelist.keys()),self.totallines/len(filelist.keys())))
+      if self.args.list == True:
+        d=''.join(str(e) for e in sorted(self.doublon))
+        print("More than 1 entry for {} ({})".format(d,len(d)))
       exit(0)
     
     if self.match.keys() != {}:
@@ -368,6 +372,8 @@ class ankiKanjiDeck():
       if args.verbose:
         print("Current line {} ".format(word))
       for i in word:
+        if i in self.allJiSet:
+          self.doublon.append(i)
         self.allJiSet.add(i)
         if i in self.searchSet:
           self.matchSet.add(i)
@@ -387,11 +393,12 @@ class ankiKanjiDeck():
 def getwordlist(kanjis,short,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
     count=0
     LIM=100
-    match={}
+    match={} # Dict to store result. NYI.
     pattern=str(kanjis)
+    wordstr=""
     try: 
       fd=open(file,"r")
-    except: 
+    except:
       print("Cant open vocabulary file {}".format(file))
       exit()
     try:
@@ -418,19 +425,18 @@ def getwordlist(kanjis,short,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencyl
                   value=L[i]
                   break
               #match[i][value]=[L[2],L[1]]
-              if short == True:
-                print("{}　".format(L[2]),end="")
-              else:
+              if short == False:
+                #print("{}　".format(L[2]),end="")
                 if i != 8:
                   print("{:<9s}: {:<10s}: {:>15s}*".format(L[2],L[1],value))
                 else:
                   print("{:<9s}: {:<10s}: {:>15s}".format(L[2],L[1],value))
+              wordstr+=L[2]+" "
               count+=1
-        if count >= LIM:
-          print(match)
-          exit(0)
-    if short:
-      print("")  
+      if count >= LIM:
+        print(match)
+        break
+    print(wordstr)  
 
 def main():
   kdeck=ankiKanjiDeck(args,noargs)
