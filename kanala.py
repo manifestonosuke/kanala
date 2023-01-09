@@ -2,6 +2,7 @@
 
 import sys
 import argparse
+from argparse import RawTextHelpFormatter
 import requests
 import json
 from rich import print as prich
@@ -9,15 +10,16 @@ from rich import print as prich
 LOGFILE="/tmp/kanala.out"
 FILE='knotes.txt'
 
-parser = argparse.ArgumentParser(description='このプログラムの説明')
+parser = argparse.ArgumentParser(description="このプログラムの説明.\nUse a csv file from anki with 2 kanjis per card forming words. Vocabulary list can also be checked for given kanjis.\nBase syntax kanala.py <anki csv file> [args] kanjis. For -w option anki file not needed",formatter_class=RawTextHelpFormatter)
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
 parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
-parser.add_argument('-f','--find',action="store_true",help='Find word not used for this kanji')
+parser.add_argument('-f','--find',action="store_true",help='For list of kanji check words in vocabulary list (as -w option).\nIt discards non joyo, word with chars already in the list and those with bad frequency. Display full result, can add -l option to restrict to a single list of words. Only 2 kanjis word are selected')
 parser.add_argument('-l','--list',action="store_true",help='Use list format (short) for output. usable in word option')
+parser.add_argument('-r','--rank',nargs=1,help='Set a rank or limit value')
 parser.add_argument('-v','--verbose',action="store_true",help='Verbose mode')
-parser.add_argument('-w','--word',action="store_true",help='Check for words including this kanji(s)')
+parser.add_argument('-w','--word',action="store_true",help='For a vocabulary list, search for words including the kanjis in argument. Add -l to display only list of word')
 args,noargs  = parser.parse_known_args()
 #print("{}:::::::{}".format(args,noargs))
 
@@ -101,6 +103,7 @@ class ankiKanjiDeck():
   def __init__(self,args,noargs):
     self.args=args
     self.noargs=noargs
+    self.list=args.list
 
     # joyo queries  
     if self.args.joyo != None:
@@ -119,7 +122,12 @@ class ankiKanjiDeck():
     self.file=self.arg0
     self.fd=openfile(self.file)
     self.remain=noargs[1:]
-    
+    if args.rank != None:
+      self.rank=int(args.rank[0])
+    else:
+      self.rank=0
+
+ 
     self.totallines=0
     self.matchword=0
     self.matchji=0
@@ -151,9 +159,10 @@ class ankiKanjiDeck():
       self.wordstr=wordlist.wordstr
       self.wordmatch=wordlist.match
       self.finalWordList={}
+      self.finalWordStr={}
       self.getJoyo()
       self.findWord()
-      self.displayWordList()
+      self.displayFindWord()
       exit(0)
 
 
@@ -202,13 +211,17 @@ class ankiKanjiDeck():
   def findWord(self):
     #self.wordstr=wordlist.wordstr
     #self.wordmatch=wordlist.wordmatch
-    maxFreq=25000
+    if self.rank == 0:
+      maxFreq=25000
+    else:
+      maxFreq=self.rank
     for i in self.remain:
       #print(self.wordstr[i]) 
       #print(self.wordmatch[i]) 
-      #self.allJiSet=set   
+      if not i in self.wordmatch:
+        print("can't find {} in {}".format(i,self.wordmatch.keys()))
+        continue
       for w in self.wordmatch[i]:
-        print(w)
         if len(w[0]) != 2:
           continue
         ji=w[0].strip(i)
@@ -226,7 +239,9 @@ class ankiKanjiDeck():
           continue
         if i not in self.finalWordList.keys():
           self.finalWordList[i]=[]
+          self.finalWordStr[i]=""
         self.finalWordList[i].append(w) 
+        self.finalWordStr[i]+=str(w[0]+" ")
     return() 
  
   def displayWordList2(self):
@@ -240,10 +255,18 @@ class ankiKanjiDeck():
       print("{}\n".format(self.wordstr[i]))
     return()
 
-  def displayWordList(self):
+  def displayFindWord(self):
     for ji in self.finalWordList.keys():
       print("Entries found for {}".format(ji))
-      print(self.finalWordList[ji])
+      if self.list != True:
+        for e in self.finalWordList[ji]:
+          if len(e) == 4:
+            rank=e[2]+"&"
+          else:
+            rank=e[2]
+          print("{:<9s}: {:<10s}: {:>15s}".format(e[0],e[1],rank))
+      print(self.finalWordStr[ji])
+      print()
     return()
 
 
@@ -293,7 +316,7 @@ class ankiKanjiDeck():
       if data.status_code != 200:
         print("{} not a 漢字. Can be a system error # {} [{}]".format(i,data.status_code,u))
         continue
-      fd.write(str(j))
+      fd.write("\n"+str(j)+"\n")
       if j['grade'] == None:
         #print("unkow class for {} (http code {} -> {}) :\n  {} ".format(i,data.status_code,u,j))
         print("unkow class for {} [{}] (http code {})".format(i,u,data.status_code))
@@ -447,8 +470,8 @@ class ankiKanjiDeck():
 
 
 class wordList():
-  def __init__(self,kanji,short,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
-    self.short=short
+  def __init__(self,kanji,list,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
+    self.list=list
     self.kanji=sanitise(kanji)
     self.file=file
     self.wordstr={}
@@ -499,6 +522,21 @@ class wordList():
           #print(self.match)
           break
       return()  
+
+  def displayWordList(self):
+    for ji in self.match.keys():
+      if self.list == False:
+        for e in self.match[ji]:
+          if len(e) == 4:
+            rank=e[2]+"+"
+          else:
+            rank=e[2]
+          print("{:<9s}: {:<10s}: {:>15s}".format(e[0],e[1],rank))
+      print(self.wordstr[ji])
+      print()
+    return()
+
+
 
 def sanitise(blob):
   l=[]
