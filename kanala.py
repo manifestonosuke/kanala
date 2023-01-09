@@ -14,6 +14,7 @@ parser.add_argument('-c','--count',action="store_true",help='Count number of occ
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
 parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
+parser.add_argument('-f','--find',action="store_true",help='Find word not used for this kanji')
 parser.add_argument('-l','--list',action="store_true",help='Use list format (short) for output. usable in word option')
 parser.add_argument('-v','--verbose',action="store_true",help='Verbose mode')
 parser.add_argument('-w','--word',action="store_true",help='Check for words including this kanji(s)')
@@ -57,8 +58,6 @@ if args.verbose:
 if args.debugdebug:
   print("args {}".format(args))
   print("noargs {}".format(noargs))
-  j=sanitizeArgs(noargs)
-  print('output {}'.format(j))
   exit(0)
 
 def get_joyo_list(url="http://x0213.org/joyo-kanji-code/joyo-kanji-code-u.csv",out="/tmp/joyo"):
@@ -143,7 +142,14 @@ class ankiKanjiDeck():
           self.searchSet.add(i)
 
     filelist=self.load_data2()
-   
+  
+    if args.find == True:
+      self.getjoyo()
+      self.findWord()
+      self.displayWord()
+      exit(0)
+
+
     if args.count == True:
       self.count_occurence(filelist)
       print("Total lines : {}".format(self.totallines))
@@ -159,10 +165,6 @@ class ankiKanjiDeck():
       exit()
 
     if self.remain == []:
-      #totalkanji=set()
-      #totalkanji=filelist.keys()
-      #print(len(filelist.keys()))
-      #print(len(totalkanji))
       print("Total lines : {}, Total uniq kanji in words {}. Ratio {:,.4f}".format(self.totallines,len(filelist.keys()),self.totallines/len(filelist.keys())))
       if self.args.list == True:
         d=''.join(str(e) for e in sorted(self.doublon))
@@ -182,20 +184,11 @@ class ankiKanjiDeck():
             self.printColor(i.strip(),each,strippar=True)
         if i not in matchlist and each != []:
           matchlist.append(each) 
-      #print("字 match : {}, 書方 match {} ({} lines in the file)".format(self.matchji,self.matchword,self.totallines))
       print("字 match : {} ({} lines in the file)".format(self.matchword,self.totallines))
-    #self.nomatch=self.remain
-    #for i in self.nomatch:
-    #  if i in matchlist:
-    #    self.nomatch.remove(i)
-    #if self.nomatch != []:
-    #  print("No match for {}".format(self.nomatch))
-    #  print("Match for {}".format(matchlist))
     if not len(self.searchSet-self.matchSet) == 0:
       #print("No match for {}".format(self.searchSet-self.matchSet))
       s=set2Str(self.searchSet-self.matchSet)
       print("No match for {}".format(s))
-    #print("Match for {}".format(self.matchSet))
     s=set2Str(self.matchSet) 
     print("Match for {}".format(s))
 
@@ -259,8 +252,6 @@ class ankiKanjiDeck():
         res['nonjoyo'].append(i)
     return(res) 
         
-
-       
   # In dev 
   def isKanji(self,achar):
     return(True)
@@ -395,53 +386,89 @@ class ankiKanjiDeck():
           jicount[i]=1
     return(jicount)
 
-def getwordlist(kanjis,short,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
-    count=0
-    LIM=100
-    match={} # Dict to store result. NYI.
-    pattern=str(kanjis)
-    wordstr=""
-    try: 
-      fd=open(file,"r")
-    except:
-      print("Cant open vocabulary file {}".format(file))
-      exit()
-    try:
-      # this is the banner
-      fd.readline() 
-    except:
-      print("Cant read vocabulary file {}".format(file))
-      exit()
-    while True:
-      l=fd.readline()
-      if not l:
-        break
-      L=l.split('\t')
-      if L[5] in "漢混":
-        if len(L[2]) >= 2:
-          for i in pattern:
-            if i in L[2]:
-              if i not in match.keys():
-                match[i]={}
-              #{print $3,$2,$8}}}'| sort -k 3 -n
-              value=1000000
-              for i in range(8,54):
-                if L[i] != '':
-                  value=L[i]
-                  break
-              #match[i][value]=[L[2],L[1]]
-              if short == False:
-                #print("{}　".format(L[2]),end="")
-                if i != 8:
-                  print("{:<9s}: {:<10s}: {:>15s}*".format(L[2],L[1],value))
-                else:
-                  print("{:<9s}: {:<10s}: {:>15s}".format(L[2],L[1],value))
-              wordstr+=L[2]+"　"
-              count+=1
-      if count >= LIM:
-        print(match)
-        break
-    print(wordstr)  
+  # Get list of kanji and for each output list of word 
+  
+  #def findWord(self):
+
+
+class wordList():
+  def __init__(self,kanji,short,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
+    self.short=short
+    self.kanji=sanitise(kanji)
+    self.file=file
+    self.wordstr={}
+    self.match={} # Dict to store result.
+
+    try:                  
+      self.fd=open(file,"r")
+    except:           
+      print("Cant open vocabulary file {}".format(self.file))   
+      exit(9)          
+
+  def getWordList(self,limit=100):
+      count=0
+      pattern=self.kanji
+      try:
+        # this is the banner
+        self.fd.readline() 
+      except:
+        print("Cant read vocabulary file {}".format(self.file))
+        exit()
+      while True:
+        l=self.fd.readline()
+        if not l:
+          break
+        L=l.split('\t')
+        if L[5] in "漢混":
+          if len(L[2]) >= 2:
+            for i in pattern:
+              #if this kanji match the word 
+              if i in L[2]:
+                this=[]
+                if i not in self.match.keys():
+                  self.match[i]=[]
+                  self.wordstr[i]=""
+                #{print $3,$2,$8}}}'| sort -k 3 -n
+                value=1000000
+                for r in range(8,54):
+                  if L[r] != '':
+                    value=L[r]
+                    break
+                this=[L[2],L[1],value]
+                if r != 8:
+                  this.append("*")
+                self.wordstr[i]+=L[2]+"　"
+                count+=1
+                self.match[i].append(this)
+        if count >= limit:
+          #print(self.match)
+          break
+      return()  
+
+  def displayWordList(self):
+      #print(self.match.keys())
+    for i in self.match.keys():
+      if self.short != True:
+        for j in self.match[i]:
+          this=j
+          print("{:<9s}: {:<10s}: {:>15s}".format(this[0],this[1],this[2]))
+          #print("{}: {}: {}".format(this[0],this[1],this[2]))
+      print("{}\n".format(self.wordstr[i]))
+    return()
+
+def sanitise(blob):
+  l=[]
+  for i in blob:
+    if len(i) > 1:
+      for j in i:
+        if not j in l:
+          l.append(j)
+    else:
+      if not i in l:
+        l.append(i)
+  return(l)   
+
+
 
 def main():
   kdeck=ankiKanjiDeck(args,noargs)
@@ -449,7 +476,9 @@ if __name__ != '__main__':
   print('loaded')
 else:
   if args.word==True:
-    getwordlist(noargs,args.list)
+    wordlist=wordList(noargs,args.list)
+    wordlist.getWordList()
+    wordlist.displayWordList()
   else:
     main()
 
