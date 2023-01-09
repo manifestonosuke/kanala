@@ -320,7 +320,12 @@ class ankiKanjiDeck():
       if l[0] == "#":
         continue
       if search == 0:
-        print("{}".format(l[0]))
+        if args.list:
+          #print('ll')
+          E=''
+        else:
+          E='\n'
+        print("{}".format(l[0]),end=E)
       else:
         if l[0] in searchme:
           #print("{}".format(l[0]))
@@ -332,7 +337,7 @@ class ankiKanjiDeck():
         print("常用内 {}".format(joyo))
       if searchme != []: 
         print("常用外 {}".format(searchme))
-    print("Total {}".format(count))
+    print("\nTotal {}".format(count))
     exit(0)
 
  
@@ -431,7 +436,7 @@ def getwordlist(kanjis,short,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencyl
                   print("{:<9s}: {:<10s}: {:>15s}*".format(L[2],L[1],value))
                 else:
                   print("{:<9s}: {:<10s}: {:>15s}".format(L[2],L[1],value))
-              wordstr+=L[2]+" "
+              wordstr+=L[2]+"　"
               count+=1
       if count >= LIM:
         print(match)
