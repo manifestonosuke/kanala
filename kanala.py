@@ -132,7 +132,9 @@ class ankiKanjiDeck():
     self.matchSet=set()
     self.allJiSet=set()
     self.joyoSet=set()
- 
+
+    self.wordstr={} 
+    self.wordmatch={} 
     
     # Load remaining args clean them and build list for search
     if self.remain != []:
@@ -144,9 +146,14 @@ class ankiKanjiDeck():
     filelist=self.load_data2()
   
     if args.find == True:
-      self.getjoyo()
+      wordlist=wordList(noargs,args.list)
+      wordlist.getWordList()
+      self.wordstr=wordlist.wordstr
+      self.wordmatch=wordlist.match
+      self.finalWordList={}
+      self.getJoyo()
       self.findWord()
-      self.displayWord()
+      self.displayWordList()
       exit(0)
 
 
@@ -191,6 +198,54 @@ class ankiKanjiDeck():
       print("No match for {}".format(s))
     s=set2Str(self.matchSet) 
     print("Match for {}".format(s))
+
+  def findWord(self):
+    #self.wordstr=wordlist.wordstr
+    #self.wordmatch=wordlist.wordmatch
+    maxFreq=25000
+    for i in self.remain:
+      #print(self.wordstr[i]) 
+      #print(self.wordmatch[i]) 
+      #self.allJiSet=set   
+      for w in self.wordmatch[i]:
+        print(w)
+        if len(w[0]) != 2:
+          continue
+        ji=w[0].strip(i)
+        if ji in self.allJiSet:
+          if args.verbose:
+            print("skipping {} from {} already exists".format(ji,w[0]))
+          continue
+        if ji not in self.joyoSet:
+          if args.verbose:
+            print("skipping {} from {} it is not joyo".format(ji,w[0]))
+          continue
+        if int(w[2]) > maxFreq:
+          if args.verbose:
+            print("skipping {} from {} frequence {}".format(ji,w[0],w[2]))
+          continue
+        if i not in self.finalWordList.keys():
+          self.finalWordList[i]=[]
+        self.finalWordList[i].append(w) 
+    return() 
+ 
+  def displayWordList2(self):
+      #print(self.match.keys())
+    for i in self.match.keys():
+      if self.short != True:
+        for j in self.match[i]:
+          this=j
+          print("{:<9s}: {:<10s}: {:>15s}".format(this[0],this[1],this[2]))
+          #print("{}: {}: {}".format(this[0],this[1],this[2]))
+      print("{}\n".format(self.wordstr[i]))
+    return()
+
+  def displayWordList(self):
+    for ji in self.finalWordList.keys():
+      print("Entries found for {}".format(ji))
+      print(self.finalWordList[ji])
+    return()
+
 
 
   def sanitise(self,blob):
@@ -365,8 +420,8 @@ class ankiKanjiDeck():
         if word[0] == word[1]:
           if args.verbose:
             print("Both ji are same -> {}".format(word))
-      if args.verbose:
-        print("Current line {} ".format(word))
+      #if args.verbose:
+      #  print("Current line {} ".format(word))
       for i in word:
         if i in self.allJiSet:
           self.doublon.append(i)
@@ -444,17 +499,6 @@ class wordList():
           #print(self.match)
           break
       return()  
-
-  def displayWordList(self):
-      #print(self.match.keys())
-    for i in self.match.keys():
-      if self.short != True:
-        for j in self.match[i]:
-          this=j
-          print("{:<9s}: {:<10s}: {:>15s}".format(this[0],this[1],this[2]))
-          #print("{}: {}: {}".format(this[0],this[1],this[2]))
-      print("{}\n".format(self.wordstr[i]))
-    return()
 
 def sanitise(blob):
   l=[]
