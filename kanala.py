@@ -17,11 +17,12 @@ parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other arg
 parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
 parser.add_argument('-f','--find',action="store_true",help='For list of kanji check words in vocabulary list (as -w option).\nIt discards non joyo, word with chars already in the list and those with bad frequency. Display full result, can add -l option to restrict to a single list of words. Only 2 kanjis word are selected')
 parser.add_argument('-l','--list',action="store_true",help='Use list format (short) for output. usable in word option')
-parser.add_argument('-r','--rank',nargs=1,help='Set a rank or limit value')
-parser.add_argument('-v','--verbose',action="store_true",help='Verbose mode')
+parser.add_argument('-r','--rank',nargs=1,default=['0'], help='Set a rank or limit value')
+parser.add_argument('-v','--verbose',action="store_true",default=False, help='Verbose mode')
 parser.add_argument('-w','--word',action="store_true",help='For a vocabulary list, search for words including the kanjis in argument. Add -l to display only list of word')
 args,noargs  = parser.parse_known_args()
-#print("{}:::::::{}".format(args,noargs))
+if args.verbose:
+  print("{}:::::::{}".format(args,noargs))
 
 def DD(a,debug=True,msg=""):
   if debug:
@@ -154,7 +155,7 @@ class ankiKanjiDeck():
     filelist=self.load_data2()
   
     if args.find == True:
-      wordlist=wordList(noargs,args.list)
+      wordlist=wordList(noargs,args)
       wordlist.getWordList()
       self.wordstr=wordlist.wordstr
       self.wordmatch=wordlist.match
@@ -413,6 +414,8 @@ class ankiKanjiDeck():
   def verifLine(self,line,format='csv'):
     csvminlen=4
     if format == 'csv' : 
+      if line[0][0] == '#':
+        return(False)
       if len(line) < csvminlen: 
         print('can\'t analyse following line, is input format ok :\n{}'.format(line))
         exit(1)
@@ -432,7 +435,8 @@ class ankiKanjiDeck():
       word=""
       self.totallines+=1
       thisline=line.split("\t")
-      self.verifLine(thisline)
+      if self.verifLine(thisline) == False:
+        continue
       for i in thisline[2],thisline[4]:
         if len(i) > 0:
           try: word+=i[0]
@@ -470,12 +474,14 @@ class ankiKanjiDeck():
 
 
 class wordList():
-  def __init__(self,kanji,list,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
-    self.list=list
+  def __init__(self,kanji,args,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
+  #def __init__(self,kanji,list,rank,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
+    self.list=args.list
     self.kanji=sanitise(kanji)
     self.file=file
     self.wordstr={}
     self.match={} # Dict to store result.
+    self.rank = int(args.rank[0])
 
     try:                  
       self.fd=open(file,"r")
@@ -484,54 +490,63 @@ class wordList():
       exit(9)          
 
   def getWordList(self,limit=100):
-      count=0
-      pattern=self.kanji
-      try:
-        # this is the banner
-        self.fd.readline() 
-      except:
-        print("Cant read vocabulary file {}".format(self.file))
-        exit()
-      while True:
-        l=self.fd.readline()
-        if not l:
-          break
-        L=l.split('\t')
-        if L[5] in "漢混":
-          if len(L[2]) >= 2:
-            for i in pattern:
-              #if this kanji match the word 
-              if i in L[2]:
-                this=[]
-                if i not in self.match.keys():
-                  self.match[i]=[]
-                  self.wordstr[i]=""
-                #{print $3,$2,$8}}}'| sort -k 3 -n
-                value=1000000
-                for r in range(8,54):
-                  if L[r] != '':
-                    value=L[r]
-                    break
-                this=[L[2],L[1],value]
-                if r != 8:
-                  this.append("*")
-                self.wordstr[i]+=L[2]+"　"
-                count+=1
-                self.match[i].append(this)
-        if count >= limit:
-          #print(self.match)
-          break
-      return()  
+    if self.rank == 0:
+      maxrank=20000
+    else:
+      maxrank=self.rank
+  
+    count=0
+    pattern=self.kanji
+    try:
+      # this is the banner
+      self.fd.readline() 
+    except:
+      print("Cant read vocabulary file {}".format(self.file))
+      exit()
+    while True:
+      l=self.fd.readline()
+      if not l:
+        break
+      L=l.split('\t')
+      if L[5] in "漢混":
+        if len(L[2]) >= 2:
+          for i in pattern:
+            #if this kanji match the word 
+            if i in L[2]:
+              value=1000000
+              for r in range(8,54):
+                if L[r] != '':
+                  value=int(L[r])
+                  break
+              if value >= maxrank:
+                if args.verbose:
+                  print("rank > {}, droping entry {}".format(maxrank,L[2]))
+                break
+              this=[]
+              if i not in self.match.keys():
+                self.match[i]=[]
+                self.wordstr[i]=""
+              #{print $3,$2,$8}}}'| sort -k 3 -n
+              this=[L[2],L[1],value]
+              if r != 8:
+                this.append("*")
+              self.wordstr[i]+=L[2]+"　"
+              count+=1
+              self.match[i].append(this)
+      if count >= limit:
+        #print(self.match)
+        break
+    return()  
 
   def displayWordList(self):
     for ji in self.match.keys():
       if self.list == False:
         for e in self.match[ji]:
           if len(e) == 4:
-            rank=e[2]+"+"
+            rank=str(e[2])+"+"
           else:
-            rank=e[2]
-          print("{:<9s}: {:<10s}: {:>15s}".format(e[0],e[1],rank))
+            rank=str(e[2])
+          print("{:<9s}: {:<12s}: {:>15s}".format(e[0],e[1],rank))
       print(self.wordstr[ji])
       print()
     return()
@@ -558,7 +573,7 @@ if __name__ != '__main__':
   print('loaded')
 else:
   if args.word==True:
-    wordlist=wordList(noargs,args.list)
+    wordlist=wordList(noargs,args)
     wordlist.getWordList()
     wordlist.displayWordList()
   else:
