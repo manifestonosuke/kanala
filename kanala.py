@@ -213,14 +213,15 @@ class ankiKanjiDeck():
     #self.wordstr=wordlist.wordstr
     #self.wordmatch=wordlist.wordmatch
     if self.rank == 0:
-      maxFreq=25000
+      maxFreq=55000
     else:
       maxFreq=self.rank
     for i in self.remain:
       #print(self.wordstr[i]) 
       #print(self.wordmatch[i]) 
       if not i in self.wordmatch:
-        print("can't find {} in {}".format(i,self.wordmatch.keys()))
+        if args.verbose:
+          print("can't find {} in {}".format(i,self.wordmatch.keys()))
         continue
       for w in self.wordmatch[i]:
         if len(w[0]) != 2:
@@ -230,6 +231,11 @@ class ankiKanjiDeck():
           if args.verbose:
             print("skipping {} from {} already exists".format(ji,w[0]))
           continue
+        if ji in self.allJiSet:
+          if args.verbose:
+            print("already in stock {} {}".format(ji,w[0]))
+          continue
+          
         if ji not in self.joyoSet:
           if args.verbose:
             print("skipping {} from {} it is not joyo".format(ji,w[0]))
@@ -262,10 +268,10 @@ class ankiKanjiDeck():
       if self.list != True:
         for e in self.finalWordList[ji]:
           if len(e) == 4:
-            rank=e[2]+"&"
+            rank=str(e[2])+"&"
           else:
             rank=e[2]
-          print("{:<9s}: {:<10s}: {:>15s}".format(e[0],e[1],rank))
+          print("{:<9s}: {:<10s}: {:>15s}".format(e[0],e[1],str(rank)))
       print(self.finalWordStr[ji])
       print()
     return()
@@ -373,7 +379,14 @@ class ankiKanjiDeck():
         sortedkey.append(k)
     sortedkey=sorted(sortedkey)
     for i in sortedkey:
-      print("{:<4} occurence  [ {} 字 ] {}".format(i,len(s[i]),s[i]))
+      if self.list:
+        out=""
+        for j in s[i]:
+          out+=j
+      else:
+        out=s[i]
+      string=''.join([str(e) for e in out]) 
+      print("{:<4} occurence  [ {} 字 ] {}".format(i,len(s[i]),string))
     print("Total {} 字".format(total))
  
   def print_joyo_list(self):
@@ -433,10 +446,10 @@ class ankiKanjiDeck():
        print("load data2 search  {} ".format(self.searchSet))
     for line in self.fd.readlines():
       word=""
-      self.totallines+=1
       thisline=line.split("\t")
       if self.verifLine(thisline) == False:
         continue
+      self.totallines+=1
       for i in thisline[2],thisline[4]:
         if len(i) > 0:
           try: word+=i[0]
@@ -491,7 +504,7 @@ class wordList():
 
   def getWordList(self,limit=100):
     if self.rank == 0:
-      maxrank=20000
+      maxrank=60000
     else:
       maxrank=self.rank
   
