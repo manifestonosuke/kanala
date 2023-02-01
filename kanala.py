@@ -12,6 +12,7 @@ FILE='knotes.txt'
 
 parser = argparse.ArgumentParser(description="このプログラムの説明.\nUse a csv file from anki with 2 kanjis per card forming words. Vocabulary list can also be checked for given kanjis.\nBase syntax kanala.py <anki csv file> [args] kanjis. For -w option anki file not needed",formatter_class=RawTextHelpFormatter)
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
+parser.add_argument('-e','--entry',action="store_true",help='Display kanji full entry when match')
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
 parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
@@ -105,6 +106,7 @@ class ankiKanjiDeck():
     self.args=args
     self.noargs=noargs
     self.list=args.list
+    self.entry=args.entry
 
     # joyo queries  
     if self.args.joyo != None:
@@ -456,7 +458,10 @@ class ankiKanjiDeck():
           except IndexError:
             print("can't parse {}".format(thisline))
             exit(0) 
+      lentry={}
+      lentry[thisline[2][0]]=thisline[2]+thisline[3]
       if len(word) > 1:
+        lentry[thisline[4][0]]=thisline[4]+thisline[5]
         if word[0] == word[1]:
           if args.verbose:
             print("Both ji are same -> {}".format(word))
@@ -467,6 +472,8 @@ class ankiKanjiDeck():
           self.doublon.append(i)
         self.allJiSet.add(i)
         if i in self.searchSet:
+          if self.entry:
+            print(lentry[i])
           self.matchSet.add(i)
           if i not in self.match.keys():
             self.match[i]=[]
@@ -479,6 +486,8 @@ class ankiKanjiDeck():
           jicount[i]+=1
         else:
           jicount[i]=1
+    if self.entry:
+      exit(0)
     return(jicount)
 
   # Get list of kanji and for each output list of word 
