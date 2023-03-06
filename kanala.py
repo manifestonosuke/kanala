@@ -21,6 +21,7 @@ parser.add_argument('-l','--list',action="store_true",help='Use list format (sho
 parser.add_argument('-r','--rank',nargs=1,default=['0'], help='Set a rank or limit value')
 parser.add_argument('-v','--verbose',action="store_true",default=False, help='Verbose mode')
 parser.add_argument('-w','--word',action="store_true",help='For a vocabulary list, search for words including the kanjis in argument. Add -l to display only list of word')
+parser.add_argument('-W','--allword',action="store_true",help='Do not limit word search to 漢混 type')
 args,noargs  = parser.parse_known_args()
 if args.verbose:
   print("{}:::::::{}".format(args,noargs))
@@ -273,7 +274,9 @@ class ankiKanjiDeck():
             rank=str(e[2])+"&"
           else:
             rank=e[2]
-          print("{:<9s}: {:<10s}: {:>15s}".format(e[0],e[1],str(rank)))
+          #print("{:<9s}: {:<20s}: {:>15s}".format(e[0],e[1],str(rank)))
+          print("{:9s} {:30} {:15s}".format(e[0],e[1],str(rank)))
+          #print(e[0].ljust(9),e[1].ljust(30),str(rank).ljust(15))
       print(self.finalWordStr[ji])
       print()
     return()
@@ -499,12 +502,16 @@ class wordList():
   def __init__(self,kanji,args,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
   #def __init__(self,kanji,list,rank,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
     self.list=args.list
+    self.allword=args.allword
+    self.verbose=args.verbose
     self.kanji=sanitise(kanji)
     self.file=file
     self.wordstr={}
     self.match={} # Dict to store result.
     self.rank = int(args.rank[0])
 
+    if self.verbose:
+      print("operning voc file {}".format(file))
     try:                  
       self.fd=open(file,"r")
     except:           
@@ -530,7 +537,13 @@ class wordList():
       if not l:
         break
       L=l.split('\t')
-      if L[5] in "漢混":
+      if self.allword == True:
+        valid=True
+      elif L[5] in "漢混":
+        valid=True
+      else:
+        valid=False
+      if valid:
         if len(L[2]) >= 2:
           for i in pattern:
             #if this kanji match the word 
