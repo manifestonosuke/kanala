@@ -409,10 +409,9 @@ class ankiKanjiDeck():
         continue
       if search == 0:
         if args.list:
-          #print('ll')
-          E=''
-        else:
           E='\n'
+        else:
+          E=''
         print("{}".format(l[0]),end=E)
       else:
         if l[0] in searchme:
