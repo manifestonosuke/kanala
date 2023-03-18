@@ -10,6 +10,21 @@ from rich import print as prich
 LOGFILE="/tmp/kanala.out"
 FILE='knotes.txt'
 
+# preprocess input string to replace 2 bytes space
+new=[]
+for i in sys.argv:
+  j=''
+  idx=0
+  for letter in i:
+    if letter == '\u3000':
+      if idx != 0:
+       j+=" "
+    else:
+      j+=letter
+      idx=1
+  new.append(j)
+sys.argv=new
+
 parser = argparse.ArgumentParser(description="このプログラムの説明.\nUse a csv file from anki with 2 kanjis per card forming words. Vocabulary list can also be checked for given kanjis.\nBase syntax kanala.py <anki csv file> [args] kanjis. For -w option anki file not needed",formatter_class=RawTextHelpFormatter)
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-e','--entry',action="store_true",help='Display kanji full entry when match')
