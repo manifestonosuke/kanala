@@ -193,6 +193,18 @@ class ankiKanjiDeck():
     if args.joyocheck == True:
       self.getJoyo()
       ctr=0
+      if args.verbose == True:
+        for i in self.joyoSet:
+          ctr+=1
+          print(i,end='')
+        print("end joyo {}".format(ctr))
+        ctr=0
+        for i in self.allJiSet:
+          ctr+=1
+          print(i,end='')
+        print("end allji {}".format(ctr))
+        #exit()
+      ctr=0
       for i in self.joyoSet-self.allJiSet:
         print(i,end='')
         ctr+=1
@@ -253,7 +265,6 @@ class ankiKanjiDeck():
           if args.verbose:
             print("already in stock {} {}".format(ji,w[0]))
           continue
-          
         if ji not in self.joyoSet:
           if args.verbose:
             print("skipping {} from {} it is not joyo".format(ji,w[0]))
