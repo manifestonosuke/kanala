@@ -5,6 +5,7 @@ import argparse
 from argparse import RawTextHelpFormatter
 import requests
 import json
+import re
 from rich import print as prich
 
 LOGFILE="/tmp/kanala.out"
@@ -28,11 +29,13 @@ sys.argv=new
 parser = argparse.ArgumentParser(description="このプログラムの説明.\nUse a csv file from anki with 2 kanjis per card forming words. Vocabulary list can also be checked for given kanjis.\nBase syntax kanala.py <anki csv file> [args] kanjis. For -w option anki file not needed",formatter_class=RawTextHelpFormatter)
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-e','--entry',action="store_true",help='Display kanji full entry when match')
+parser.add_argument('-E','--wentry',action="store_true",help='Display matched word only')
 parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
 parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
 parser.add_argument('-f','--find',action="store_true",help='For list of kanji check words in vocabulary list (as -w option).\nIt discards non joyo, word with chars already in the list and those with bad frequency. Display full result, can add -l option to restrict to a single list of words. Only 2 kanjis word are selected')
 parser.add_argument('-l','--list',action="store_true",help='Use list format (short) for output. usable in word option')
+parser.add_argument('-m','--multi',default=0,help='For kanji appearing mutiple time (default 2) display associated kanji for those words')
 parser.add_argument('-r','--rank',nargs=1,default=['0'], help='Set a rank or limit value')
 parser.add_argument('-v','--verbose',action="store_true",default=False, help='Verbose mode')
 parser.add_argument('-w','--word',action="store_true",help='For a vocabulary list, search for words including the kanjis in argument. Add -l to display only list of word')
@@ -43,7 +46,22 @@ if args.verbose:
 
 def DD(a,debug=True,msg=""):
   if debug:
-    print("{}DD {}".format(msg,a))
+    if msg == "":
+      print("DD {}".format(a))
+    else:
+      print("{} {}".format(msg,a))
+     
+
+def isKana(c,display=False):
+  p = re.compile('[\u3041-\u309F]')
+  if p.match(c):
+    if display == True:
+      print(c)
+    return(True)
+  else:
+    return(False)
+
+
 
 def sanitizeArgs(received):
   out=[]
@@ -123,6 +141,7 @@ class ankiKanjiDeck():
     self.noargs=noargs
     self.list=args.list
     self.entry=args.entry
+    self.wentry=args.wentry
 
     # joyo queries  
     if self.args.joyo != None:
@@ -171,7 +190,16 @@ class ankiKanjiDeck():
           self.searchSet.add(i)
 
     filelist=self.load_data2()
-  
+    
+    if args.multi != 0:
+      self.buildMulti(filelist)
+      filelist=self.load_data2()
+      self.remain=[]
+      for i in self.match:
+        DD(i,debug=False,msg='multi')
+        self.remain.append(i)
+         
+ 
     if args.find == True:
       wordlist=wordList(noargs,args)
       wordlist.getWordList()
@@ -222,15 +250,25 @@ class ankiKanjiDeck():
       matchlist=[]
       #DD(self.match)
       for each in self.match:
+        DD(each)
         if self.match[each] == []:
           continue
         if each == None:
           print('None　です')
         else:
           for i in self.match[each]:
-            self.printColor(i.strip(),each,strippar=True)
+            if self.wentry == True:
+              print(i.split()[2])
+              continue
+            if args.multi != 0:
+              self.printMulti(i.strip(),each,strippar=True)
+            else:
+              self.printColor(i.strip(),each,strippar=True)
         if i not in matchlist and each != []:
           matchlist.append(each) 
+      if args.multi != 0:
+        print()
+        exit()
       print("字 match : {} ({} lines in the file)".format(self.matchword,self.totallines))
     if not len(self.searchSet-self.matchSet) == 0:
       #print("No match for {}".format(self.searchSet-self.matchSet))
@@ -392,6 +430,16 @@ class ankiKanjiDeck():
         S+=i
     prich(S) 
    
+  def printMulti(self,s,m,strippar=False):
+    l=s.split('\t')
+    DD(l[1],debug=args.verbose)
+    for i in l[1]:
+      if i  == '（':
+        break
+      if i not in self.searchSet:
+        if not isKana(i):
+          print(i,end="")
+ 
   def count_occurence(self,l):
     s={}
     total=0
@@ -519,9 +567,17 @@ class ankiKanjiDeck():
     return(jicount)
 
   # Get list of kanji and for each output list of word 
-  
-  #def findWord(self):
-
+  def buildMulti(self,f):
+    count=0
+    for i in self.doublon:
+      if int(f[i]) == int(args.multi):
+        if count == 0:
+          print("Adding set with count {}".format(f[i]),end=" ")
+        print(i,end="")
+        self.searchSet.add(i)
+        count+=1
+    print()
+    return(count)
 
 class wordList():
   def __init__(self,kanji,args,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
