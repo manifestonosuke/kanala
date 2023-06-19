@@ -35,7 +35,7 @@ parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other arg
 parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
 parser.add_argument('-f','--find',action="store_true",help='For list of kanji check words in vocabulary list (as -w option).\nIt discards non joyo, word with chars already in the list and those with bad frequency. Display full result, can add -l option to restrict to a single list of words. Only 2 kanjis word are selected')
 parser.add_argument('-l','--list',action="store_true",help='Use list format (short) for output. usable in word option')
-parser.add_argument('-m','--multi',default=0,help='For kanji appearing mutiple time (default 2) display associated kanji for those words')
+parser.add_argument('-m','--multi',type=int,default=0,help='For kanji appearing mutiple time (default 2) display associated kanji for those words')
 parser.add_argument('-r','--rank',nargs=1,default=['0'], help='Set a rank or limit value')
 parser.add_argument('-v','--verbose',action="store_true",default=False, help='Verbose mode')
 parser.add_argument('-w','--word',action="store_true",help='For a vocabulary list, search for words including the kanjis in argument. Add -l to display only list of word')
@@ -142,6 +142,7 @@ class ankiKanjiDeck():
     self.list=args.list
     self.entry=args.entry
     self.wentry=args.wentry
+    self.find=args.find
 
     # joyo queries  
     if self.args.joyo != None:
@@ -178,6 +179,7 @@ class ankiKanjiDeck():
     self.matchSet=set()
     self.allJiSet=set()
     self.joyoSet=set()
+    self.multiSet=set()
 
     self.wordstr={} 
     self.wordmatch={} 
@@ -193,14 +195,25 @@ class ankiKanjiDeck():
     
     if args.multi != 0:
       self.buildMulti(filelist)
+      # update self.search list with doublon[m]
       filelist=self.load_data2()
+      #print(self.searchSet)
       self.remain=[]
       for i in self.match:
-        DD(i,debug=False,msg='multi')
-        self.remain.append(i)
-         
+        for entry in self.match[i]:
+          #print(entry)
+          for kanji in entry.split('\t')[2][0],entry.split('\t')[4][0]:
+            if kanji in self.searchSet:
+              DD('Skipping {} because in search'.format(kanji),debug=args.verbose)
+            else: 
+              DD('Adding {} because not in search'.format(kanji),debug=args.verbose)
+              self.remain.append(i)
+      noargs=self.remain
+      DD(noargs,debug=args.debugdebug)
+      self.find=True
+     
  
-    if args.find == True:
+    if self.find == True:
       wordlist=wordList(noargs,args)
       wordlist.getWordList()
       self.wordstr=wordlist.wordstr
@@ -250,7 +263,7 @@ class ankiKanjiDeck():
       matchlist=[]
       #DD(self.match)
       for each in self.match:
-        DD(each)
+        #DD(each)
         if self.match[each] == []:
           continue
         if each == None:
@@ -258,7 +271,7 @@ class ankiKanjiDeck():
         else:
           for i in self.match[each]:
             if self.wentry == True:
-              print(i.split()[2])
+              print("[{}] : {}".format(each,i.split('\t')[1]))
               continue
             if args.multi != 0:
               self.printMulti(i.strip(),each,strippar=True)
@@ -288,9 +301,10 @@ class ankiKanjiDeck():
       #print(self.wordstr[i]) 
       #print(self.wordmatch[i]) 
       if not i in self.wordmatch:
-        if args.verbose:
-          print("can't find {} in {}".format(i,self.wordmatch.keys()))
+        #if args.verbose:
+        #  print("can't find {} in {}".format(i,self.wordmatch.keys()))
         continue
+      DD("Finding for {}".format(i),debug=args.verbose)
       for w in self.wordmatch[i]:
         if len(w[0]) != 2:
           continue
@@ -439,12 +453,17 @@ class ankiKanjiDeck():
       if i not in self.searchSet:
         if not isKana(i):
           print(i,end="")
- 
+
+  # l = dict {'腰': 1, ..} 
   def count_occurence(self,l):
+    self.getJoyo()
     s={}
+    notjoyo=[]
     total=0
     for k in l.keys():
       total+=1
+      if k not in self.joyoSet:
+        notjoyo.append(k)
       if l[k] in s.keys():
         s[l[k]].append(k)
       else:
@@ -466,7 +485,9 @@ class ankiKanjiDeck():
         out=s[i]
       string=''.join([str(e) for e in out]) 
       print("{:<4} occurence  [ {} 字 ] {}".format(i,len(s[i]),string))
-    print("Total {} 字".format(total))
+    print("{} not joyo kanji {}".format(len(notjoyo),''.join(notjoyo)))
+    unik=total-len(notjoyo)
+    print("Total {} 字, {} 常用, still {}".format(total,unik,2136-unik))
  
   def print_joyo_list(self):
     data=get_joyo_list()
@@ -564,16 +585,19 @@ class ankiKanjiDeck():
           jicount[i]=1
     if self.entry:
       exit(0)
+    if args.verbose:
+      print("print loaded {} 字".format(len(self.allJiSet)))
     return(jicount)
 
   # Get list of kanji and for each output list of word 
+  # f (filelist) contains dict with each kanji in dec source with # occurence {'守': 1, ..} 
   def buildMulti(self,f):
     count=0
+    #DD('doublon',debug=args.verbose)
     for i in self.doublon:
       if int(f[i]) == int(args.multi):
         if count == 0:
-          print("Adding set with count {}".format(f[i]),end=" ")
-        print(i,end="")
+          print('kanji with count {}'.format(args.multi),end=" : ")
         self.searchSet.add(i)
         count+=1
     print()
@@ -626,6 +650,7 @@ class wordList():
         valid=False
       if valid:
         if len(L[2]) >= 2:
+          #DD(pattern,debug=args.verbose)
           for i in pattern:
             #if this kanji match the word 
             if i in L[2]:
