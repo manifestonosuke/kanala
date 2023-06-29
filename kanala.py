@@ -26,11 +26,64 @@ for i in sys.argv:
   new.append(j)
 sys.argv=new
 
+class Msg():
+  def __init__(self,level='info'):
+    self.level=level
+    self.valid=['info','debug','verbose','warning']
+
+  def set(self,level):
+    print("{0:15} : {1}".format('INFO','Setting loglevel to '+level))
+    if level not in self.valid:
+      self.display("not a valid level {0}".format(level))
+      return(9)
+    self.level=level
+
+  def verbose(self,msg,label=None):
+    if self.level == 'verbose' :
+      if label != None:
+        header=label
+      else:
+        header='VERBOSE'
+      print("{0:15} : {1}".format(header,msg))
+
+  def info(self,msg,label=None):
+    if label != None:
+      header=label
+    else:
+      header="INFO"
+    print("{0:15} : {1}".format(header,msg))
+
+  def error(self,msg,fatal=False):
+    header="ERROR"
+    print("{0:15} : {1}".format(header,msg))
+    if fatal:
+      exit(9)
+
+  def warning(self,msg,fatal=False):
+    header="WARNING"
+    print("{0:15} : {1}".format(header,msg))
+    if fatal:
+      exit(9)
+
+  def debug(self,msg):
+    if self.level == "debug":
+      header="DEBUG"
+      print("{0:15} : {1}".format(header,msg))
+
+  def raw(self,msg):
+      print("{0}".format(msg))
+  def showlevel(self):
+    print("Error level is {0} : ".format(self.level))
+display=Msg('info')
+
+#args,cli=parser.parse_known_args()
+
 parser = argparse.ArgumentParser(description="このプログラムの説明.\nUse a csv file from anki with 2 kanjis per card forming words. Vocabulary list can also be checked for given kanjis.\nBase syntax kanala.py <anki csv file> [args] kanjis. For -w option anki file not needed",formatter_class=RawTextHelpFormatter)
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-e','--entry',action="store_true",help='Display kanji full entry when match')
 parser.add_argument('-E','--wentry',action="store_true",help='Display matched word only')
-parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode')
+parser.add_argument('-D','--debugdebug',action="store_true",help='special debug mode .. to be removed')
+parser.add_argument('-d','--debug',action="store_true",help='debug mode')
 parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
 parser.add_argument('-f','--find',action="store_true",help='For list of kanji check words in vocabulary list (as -w option).\nIt discards non joyo, word with chars already in the list and those with bad frequency. Display full result, can add -l option to restrict to a single list of words. Only 2 kanjis word are selected')
@@ -39,10 +92,15 @@ parser.add_argument('-m','--multi',type=int,default=0,help='For kanji appearing 
 parser.add_argument('-r','--rank',nargs=1,default=['0'], help='Set a rank or limit value')
 parser.add_argument('-v','--verbose',action="store_true",default=False, help='Verbose mode')
 parser.add_argument('-w','--word',action="store_true",help='For a vocabulary list, search for words including the kanjis in argument. Add -l to display only list of word')
+parser.add_argument('--vocfile',default=1,type=int,help='Vocabulary file to use. Integer starting from 0. use --vocfile -1 for description')
 parser.add_argument('-W','--allword',action="store_true",help='Do not limit word search to 漢混 type')
 args,noargs  = parser.parse_known_args()
 if args.verbose:
   print("{}:::::::{}".format(args,noargs))
+if args.verbose == True:
+  display.set('verbose')
+if args.debug==True:
+  display.set('debug')
 
 def DD(a,debug=True,msg=""):
   if debug:
@@ -165,7 +223,6 @@ class ankiKanjiDeck():
       self.rank=int(args.rank[0])
     else:
       self.rank=0
-
  
     self.totallines=0
     self.matchword=0
@@ -333,9 +390,20 @@ class ankiKanjiDeck():
     return() 
  
   def displayWordList2(self):
-      #print(self.match.keys())
     for i in self.match.keys():
       if self.short != True:
+        maxa=maxb=maxc=0
+        for j in self.match[i]:
+          a=len(this[0])
+          b=len(this[1])
+          c=len(this[2])
+          if a > maxa:
+            maxa=a
+          if b > maxb:
+            maxb=b
+          if c > maxc:
+            maxc=c
+        print(a,b,c)
         for j in self.match[i]:
           this=j
           print("{:<9s}: {:<10s}: {:>15s}".format(this[0],this[1],this[2]))
@@ -604,21 +672,31 @@ class ankiKanjiDeck():
     return(count)
 
 class wordList():
-  def __init__(self,kanji,args,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
-  #def __init__(self,kanji,list,rank,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
+  def __init__(self,kanji,args):
+  #def __init__(self,kanji,args,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
+    display.debug("漢字{}|{}".format(kanji,args))
+    self.filelist=["/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv","/home/pierre/Projets/Nihongo/NLT1.40_freq_list.xlsx.csv"]
+    self.filesep=['\t',',']
+    if args.vocfile == -1:
+      display.raw("Available voc file : {}".format(self.filelist))
+      exit(0)
+    elif args.vocfile > len(self.filelist):
+      display.error("vocfile index too big {} (max {})".format(args.vocfile,len(self.filelist)),fatal=True) 
+    self.vocfileidx=args.vocfile-1
+    self.file=self.filelist[self.vocfileidx]
     self.list=args.list
     self.allword=args.allword
     self.verbose=args.verbose
     self.kanji=sanitise(kanji)
-    self.file=file
     self.wordstr={}
     self.match={} # Dict to store result.
     self.rank = int(args.rank[0])
+    self.short=args.list
 
     if self.verbose:
-      print("operning voc file {}".format(file))
+      print("operning voc file {}".format(self.file))
     try:                  
-      self.fd=open(file,"r")
+      self.fd=open(self.file,"r")
     except:           
       print("Cant open vocabulary file {}".format(self.file))   
       exit(9)          
@@ -637,49 +715,115 @@ class wordList():
     except:
       print("Cant read vocabulary file {}".format(self.file))
       exit()
+    display.verbose("Parsing file {} idx {}".format(self.file,self.vocfileidx))
     while True:
       l=self.fd.readline()
       if not l:
         break
-      L=l.split('\t')
-      if self.allword == True:
-        valid=True
-      elif L[5] in "漢混":
-        valid=True
-      else:
-        valid=False
-      if valid:
-        if len(L[2]) >= 2:
-          #DD(pattern,debug=args.verbose)
-          for i in pattern:
-            #if this kanji match the word 
-            if i in L[2]:
-              value=1000000
-              for r in range(8,54):
-                if L[r] != '':
-                  value=int(L[r])
+      #L=l.split('\t')
+      L=l.split(self.filesep[self.vocfileidx])
+      if len(L) < 2:
+        continue
+      if self.vocfileidx == 0:
+        display.debug("vocfile0  : {} {}".format(self.filesep[self.vocfileidx],L))
+        if self.allword == True:
+          valid=True
+        else:
+          valid=False
+          if L[5] in "漢混":
+            valid=True
+        if valid:
+          if len(L[2]) >= 2:
+            for i in pattern:
+              #if this kanji match the word 
+              if i in L[2]:
+                #print(L[5])
+                value=1000000
+                for r in range(8,54):
+                  if L[r] != '':
+                    value=int(L[r])
+                    break
+                if value >= maxrank:
+                  if args.verbose:
+                    print("rank > {}, droping entry {}".format(maxrank,L[2]))
                   break
-              if value >= maxrank:
-                if args.verbose:
-                  print("rank > {}, droping entry {}".format(maxrank,L[2]))
-                break
-              this=[]
-              if i not in self.match.keys():
-                self.match[i]=[]
-                self.wordstr[i]=""
-              #{print $3,$2,$8}}}'| sort -k 3 -n
-              this=[L[2],L[1],value]
-              if r != 8:
-                this.append("*")
-              self.wordstr[i]+=L[2]+"　"
-              count+=1
-              self.match[i].append(this)
+                this=[]
+                if i not in self.match.keys():
+                  self.match[i]=[]
+                  self.wordstr[i]=""
+                this=[L[2],L[1],value]
+                if r != 8:
+                  this.append("*")
+                self.wordstr[i]+=L[2]+"　"
+                count+=1
+                self.match[i].append(this)
+          if len(L[1]) >= 2:
+            for i in pattern:
+              display.verbose("matching {}:{}:{}".format(i,pattern,L[1]))
+              if i in L[1]:
+                this=[]
+                if i not in self.match.keys():
+                  self.match[i]=[]
+                  self.wordstr[i]=""
+                this=[L[1],L[3],L[4]]
+                self.wordstr[i]+=L[1]+"　"
+                count+=1
+      if self.vocfileidx == 1:
+        if self.allword == True:
+          valid=True
+        else:
+          valid=True ## No condition yet
+          if len(L) < 4:
+            display.debug("Line too short {}".format(L))
+            valid=False
+          if L[1] == '動詞-自立':
+            display.debug("excluding {} {}".format('動詞-自立',L))
+            valid=False
+        if valid:
+          if len(L[0]) >= 2:
+            for i in pattern:
+              #if this kanji match the word 
+              if i in L[0]:
+                display.debug("vocfile1 : {} {}".format(self.filesep[self.vocfileidx],L))
+                this=[]
+                if i not in self.match.keys():
+                  self.match[i]=[]
+                  self.wordstr[i]=""
+                this=[L[0],L[2],L[3].strip()]
+                self.wordstr[i]+=L[0]+"　"
+                count+=1
+                self.match[i].append(this)
+
       if count >= limit:
         #print(self.match)
         break
     return()  
+ 
+  def displayWordList2(self):
+    for i in self.match.keys():
+      if self.short != True:
+        maxa=maxb=maxc=0
+        for this in self.match[i]:
+          a=len(str(this[0]))
+          b=len(str(this[1]))
+          c=len(str(this[2]))
+          if a > maxa:
+            maxa=a
+          if b > maxb:
+            maxb=b
+          if c > maxc:
+            maxc=c
+        print(a,b,c)
+        for this in self.match[i]:
+          #print("{:<10s}: {:10s}: {}".format(this[0],this[1],this[2]))
+          print("{:20s}: {:30s}: {:5s} ".format(this[0],this[1],this[2]))
+          #print("{}: {}: {}".format(this[0],this[1],this[2]))
+      print("{}\n".format(self.wordstr[i]))
+    return()
+
 
   def displayWordList(self):
+    print(1)
     for ji in self.match.keys():
       if self.list == False:
         for e in self.match[ji]:
@@ -716,7 +860,7 @@ else:
   if args.word==True:
     wordlist=wordList(noargs,args)
     wordlist.getWordList()
-    wordlist.displayWordList()
+    wordlist.displayWordList2()
   else:
     main()
 
