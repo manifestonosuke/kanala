@@ -389,27 +389,27 @@ class ankiKanjiDeck():
         self.finalWordStr[i]+=str(w[0]+" ")
     return() 
  
-  def displayWordList2(self):
-    for i in self.match.keys():
-      if self.short != True:
-        maxa=maxb=maxc=0
-        for j in self.match[i]:
-          a=len(this[0])
-          b=len(this[1])
-          c=len(this[2])
-          if a > maxa:
-            maxa=a
-          if b > maxb:
-            maxb=b
-          if c > maxc:
-            maxc=c
-        print(a,b,c)
-        for j in self.match[i]:
-          this=j
-          print("{:<9s}: {:<10s}: {:>15s}".format(this[0],this[1],this[2]))
-          #print("{}: {}: {}".format(this[0],this[1],this[2]))
-      print("{}\n".format(self.wordstr[i]))
-    return()
+#  def displayWordList2(self):
+#    for i in self.match.keys():
+#      if self.short != True:
+#        maxa=maxb=maxc=0
+#        for j in self.match[i]:
+#          a=len(this[0])
+#          b=len(this[1])
+#          c=len(this[2])
+#          if a > maxa:
+#            maxa=a
+#          if b > maxb:
+#            maxb=b
+#          if c > maxc:
+#            maxc=c
+#        display.verbose("colum size 2{} {} {}".format(a,b,c))
+#        for j in self.match[i]:
+#          this=j
+#          print("{:<9s}: {:<10s}: {:>15s}".format(this[0],this[1],this[2]))
+#          #print("{}: {}: {}".format(this[0],this[1],this[2]))
+#      print("{}\n".format(self.wordstr[i]))
+#    return()
 
   def displayFindWord(self):
     for ji in self.finalWordList.keys():
@@ -598,7 +598,7 @@ class ankiKanjiDeck():
         return(False)
       if len(line) < csvminlen: 
         print('can\'t analyse following line, is input format ok :\n{}'.format(line))
-        exit(1)
+        return(False)
 
   # open file and put data in sets
   # It writes all unicode kanji to output file
@@ -813,10 +813,10 @@ class wordList():
             maxb=b
           if c > maxc:
             maxc=c
-        print(a,b,c)
+        display.verbose("colum size {} {} {}".format(a,b,c))
         for this in self.match[i]:
           #print("{:<10s}: {:10s}: {}".format(this[0],this[1],this[2]))
-          print("{:20s}: {:30s}: {:5s} ".format(this[0],this[1],this[2]))
+          print("{:20s}: {:30s}: {:5s} ".format(this[0],this[1],str(this[2])))
           #print("{}: {}: {}".format(this[0],this[1],this[2]))
       print("{}\n".format(self.wordstr[i]))
     return()
