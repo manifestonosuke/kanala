@@ -1,6 +1,8 @@
 #!/bin/python3
+# -*- coding: utf-8 -*-
 
 import sys
+import unicodedata as unicodedata
 import argparse
 from argparse import RawTextHelpFormatter
 import requests
@@ -784,7 +786,7 @@ class wordList():
             for i in pattern:
               #if this kanji match the word 
               if i in L[0]:
-                display.debug("vocfile1 : {} {}".format(self.filesep[self.vocfileidx],L))
+                display.debug("vocfile1 : {} {} {}".format(self.filesep[self.vocfileidx],L[0],i))
                 this=[]
                 if i not in self.match.keys():
                   self.match[i]=[]
@@ -800,6 +802,9 @@ class wordList():
     return()  
  
   def displayWordList2(self):
+    len0=20
+    len1=30
+    len2=10
     for i in self.match.keys():
       if self.short != True:
         maxa=maxb=maxc=0
@@ -816,25 +821,36 @@ class wordList():
         display.verbose("colum size {} {} {}".format(a,b,c))
         for this in self.match[i]:
           #print("{:<10s}: {:10s}: {}".format(this[0],this[1],this[2]))
-          print("{:20s}: {:30s}: {:5s} ".format(this[0],this[1],str(this[2])))
           #print("{}: {}: {}".format(this[0],this[1],this[2]))
+          #print("{:20s}: {:30s}: {:5s} ".format(this[0],this[1],str(this[2])))
+          fc0=calctab(len0,this[0])
+          fc1=calctab(len1,this[1])
+          fc2=calctab(len2,this[2])
+          print("{:<{}}{:<{}}{:<{}}".format(this[0],fc0,this[1],fc1,str(this[2]),fc2))
       print("{}\n".format(self.wordstr[i]))
     return()
 
+def cjklen(string):
+  return sum(1 + (unicodedata.east_asian_width(c) in "WF") for c in string)
 
-  def displayWordList(self):
-    print(1)
-    for ji in self.match.keys():
-      if self.list == False:
-        for e in self.match[ji]:
-          if len(e) == 4:
-            rank=str(e[2])+"+"
-          else:
-            rank=str(e[2])
-          print("{:<9s}: {:<12s}: {:>15s}".format(e[0],e[1],rank))
-      print(self.wordstr[ji])
-      print()
-    return()
+def calctab(tab,string):
+  rez=tab+len(string)-cjklen(string)
+  return(rez)
+
+#  def displayWordList(self):
+#    #print(1)
+#    for ji in self.match.keys():
+#      if self.list == False:
+#        for e in self.match[ji]:
+#          if len(e) == 4:
+#            rank=str(e[2])+"+"
+#          else:
+#            rank=str(e[2])
+#          #print("{:<9s}: {:<12s}: {:>15s}".format(e[0],e[1],rank))
+#          print("{:<9s}{:<12s}{:>15s}".format(e[0],e[1],rank))
+#      print(self.wordstr[ji])
+#      print()
+#    return()
 
 
 
