@@ -9,6 +9,7 @@ import requests
 import json
 import re
 from rich import print as prich
+import csv
 
 LOGFILE="/tmp/kanala.out"
 FILE='knotes.txt'
@@ -94,7 +95,7 @@ parser.add_argument('-m','--multi',type=int,default=0,help='For kanji appearing 
 parser.add_argument('-r','--rank',nargs=1,default=['0'], help='Set a rank or limit value')
 parser.add_argument('-v','--verbose',action="store_true",default=False, help='Verbose mode')
 parser.add_argument('-w','--word',action="store_true",help='For a vocabulary list, search for words including the kanjis in argument. Add -l to display only list of word')
-parser.add_argument('--vocfile',default=1,type=int,help='Vocabulary file to use. Integer starting from 0. use --vocfile -1 for description')
+parser.add_argument('-V','--vocfile',default=1,type=int,help='Vocabulary file to use. Integer starting from 0. use --vocfile -1 for description')
 parser.add_argument('-W','--allword',action="store_true",help='Do not limit word search to 漢混 type')
 args,noargs  = parser.parse_known_args()
 if args.verbose:
@@ -158,19 +159,19 @@ if args.debugdebug:
   print("noargs {}".format(noargs))
   exit(0)
 
-def get_joyo_list(url="http://x0213.org/joyo-kanji-code/joyo-kanji-code-u.csv",out="/tmp/joyo"):
-  try: 
-    r = requests.get(url)
-  except BaseException as e:
-    print("Exception raised during request -> {}".format(e))
-
-  if r.status_code != 200:
-    print("Return code not 200 -> {}".format(r.status_code))    
-  else:
-    if args.verbose:
-      print("Got data from {}".format(url))
-  open(out, "wb").write(r.content)
-  return(out) 
+#def get_joyo_list(url="http://x0213.org/joyo-kanji-code/joyo-kanji-code-u.csv",out="/tmp/joyo"):
+#  try: 
+#    r = requests.get(url)
+#  except BaseException as e:
+#    print("Exception raised during request -> {}".format(e))
+#
+#  if r.status_code != 200:
+#    print("Return code not 200 -> {}".format(r.status_code))    
+#  else:
+#    if args.verbose:
+#      print("Got data from {}".format(url))
+#  open(out, "wb").write(r.content)
+#  return(out) 
 
 def openfile(file,op="r"):
   try : 
@@ -713,13 +714,20 @@ class wordList():
     pattern=self.kanji
     try:
       # this is the banner
-      self.fd.readline() 
+      self.fd.readline()
     except:
       print("Cant read vocabulary file {}".format(self.file))
       exit()
     display.verbose("Parsing file {} idx {}".format(self.file,self.vocfileidx))
     while True:
       l=self.fd.readline()
+      if self.vocfileidx == 1:
+        lcsv=["{}".format(x) for x in list(csv.reader([l], delimiter=',', quotechar='"'))[0] ]
+        print(lcsv,len(lcsv))
+        if len(lcsv) < 4:
+          continue
+        l="{},{},{},{}".format(lcsv[0],lcsv[1],lcsv[2],lcsv[3].replace(',','')) 
+        print("3"+str(l))
       if not l:
         break
       #L=l.split('\t')
@@ -834,7 +842,8 @@ def cjklen(string):
   return sum(1 + (unicodedata.east_asian_width(c) in "WF") for c in string)
 
 def calctab(tab,string):
-  rez=tab+len(string)-cjklen(string)
+  stringme=str(string) 
+  rez=tab+len(stringme)-cjklen(stringme)
   return(rez)
 
 #  def displayWordList(self):
@@ -874,7 +883,7 @@ if __name__ != '__main__':
   print('loaded')
 else:
   if args.word==True:
-    wordlist=wordList(noargs,args)
+    wordlist=wordList(noargs[1:],args)
     wordlist.getWordList()
     wordlist.displayWordList2()
   else:
