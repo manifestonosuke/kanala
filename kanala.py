@@ -721,15 +721,13 @@ class wordList():
     display.verbose("Parsing file {} idx {}".format(self.file,self.vocfileidx))
     while True:
       l=self.fd.readline()
+      if not l:
+        break
       if self.vocfileidx == 1:
         lcsv=["{}".format(x) for x in list(csv.reader([l], delimiter=',', quotechar='"'))[0] ]
-        print(lcsv,len(lcsv))
         if len(lcsv) < 4:
           continue
         l="{},{},{},{}".format(lcsv[0],lcsv[1],lcsv[2],lcsv[3].replace(',','')) 
-        print("3"+str(l))
-      if not l:
-        break
       #L=l.split('\t')
       L=l.split(self.filesep[self.vocfileidx])
       if len(L) < 2:
