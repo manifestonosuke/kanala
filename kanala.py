@@ -10,9 +10,12 @@ import json
 import re
 from rich import print as prich
 import csv
+import os
 
 LOGFILE="/tmp/kanala.out"
 FILE='knotes.txt'
+HOME=os.environ["HOME"]
+DATAPATH=HOME+"/Projets/Nihongo/"
 
 # preprocess input string to replace 2 bytes space
 new=[]
@@ -676,9 +679,8 @@ class ankiKanjiDeck():
 
 class wordList():
   def __init__(self,kanji,args):
-  #def __init__(self,kanji,args,file="/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv"):
     display.debug("漢字{}|{}".format(kanji,args))
-    self.filelist=["/home/pierre/Projets/Nihongo/BCCWJ_frequencylist_suw_ver1_0.tsv","/home/pierre/Projets/Nihongo/NLT1.40_freq_list.xlsx.csv"]
+    self.filelist=[DATAPATH+"BCCWJ_frequencylist_suw_ver1_0.tsv",DATAPATH+"/NLT1.40_freq_list.xlsx.csv"]
     self.filesep=['\t',',']
     if args.vocfile == -1:
       display.raw("Available voc file : {}".format(self.filelist))
