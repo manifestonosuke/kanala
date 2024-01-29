@@ -1,0 +1,36 @@
+This deck is to help learning to write japanese kanjis. It is not for beginner.  It contains only japanese.
+The purpose of the deck is to cover all joyo kanjis with a minimal set of cards. It contains 1216 cards to cover the 2147 kanjis. To do that each entry is a composed word or for some a jukugo of 3 or more kanjis. In this case only the 2 first are key one. The search field show an hiragana work with some time an hint in parenthesis which is usually a definition or another reading ( onyomi / kunyomi).
+Most of the reading are based on onyomi (because it is usually the way kanjis are stored in dictionnary).
+For each card 2 kanjis will be explained in 2 lines :
+-> Front : a word or jukugo with for not common word some explanation in parenthesis.
+こうちょう　（顔に血が上って赤みを帯びること）
+-> Back
+* The kanji itself with in parenthesis bushu and then some kanji compond to help remember/write kanji separated with a pipe (|) some time there are 2 pipe, the latest being with compond without specific meaning but to help decompose the kanji. The main difference is that the compond can help to remember the reading as the compond without meaning are just stroke.
+* The kanji itself with in parenthesis bushu with when possible the other compound of the kanji. Some time another kanji with just stroke to help understanding the kanji structure.
+Typical entry is : 
+こうちょう　（顔に血が上って赤みを帯びること）  紅潮    紅 （糸｜工）   紅葉　紅茶　べに、くれない（紅）　口紅  潮（氵｜朝）    潮流　風潮　満潮　潮位　しお（潮）上げ潮　引き潮
+
+
+
+* The second line for each kanji give example words for all joyo reading. For on reading if the reading is different from the search one it will be written in parenthesis AFTER the word. For kun yomi the reading will be in hiragana with the kanji writing in parenthesis.
+
+Usage.
+Take you favorite pen and paper and go card by card, write down the kanji and if you do not know it look at the componds to understand the writting. Look at the other words and make sure you understand all of them (or not ...)
+Give a look at the compond and try to remember other kanji with same compond as they often have similar or close on reading. Write down a few other sample if you like.
+
+Vocabulary : I tried to keep the most common words for word example for some of them I use non joyo kanji because the full word itself is quite common.
+Non Joyo kanjis are : 怯萌塵絆拗苑蒙晦蘭煉耽洩
+
+Strikes counts/order and other other code numbers are not included, you need to know the logic of stroke order and if you have any doubt check any strike order site.
+Most of the kanji compound comes from this (wonderful) site (jp only)  : https://kanji.jitenon.jp/ 
+You can just copy/paste the kanji here to get the strike order 
+
+Kanji and fonts : There are a few kanjis where the computer font is not the same as the writting font. In the card I tried to keep the hand writting one (and specify the regular computer fonts). If you look up in some dictionnaries you may find different entries. This kanjis are (computer font) 剥𠮟填挟頰 plus the mysterious 虞 (where the font aspect will change the apparence with the same unicode number).
+Why Joyo : Kanjis system is very old and there are too many readings to remeber, althrough joyo are not always really common and some common kanjis are not joyo, it is more than enough to exrcice your japanese ability. One of the issue of other common kanji deck is that they are listing all possible reading (including non joyo) which are almost never used.
+Full explanation of the logic behind joyo kanji + list (in japanese) here : https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/pdf/joyokanjihyo_20101130.pdf
+The 3rd section (3 付表) which list specific reading of kanjis is not used in this deck (like 明日　あす）.
+
+Work in progress : It is my first serious deck and I may have left tags or html tags in the deck. Some entries maybe very short (because the few first 100 one were a full manual process including word lookup).
+
+Conlusion : This deck is mostly to exercise your hand and review your knwoledge. Remebering the kanjis take a lot of time and repetition. Carefully looking at the structure helps a lot, don't heistate to make simple story with bushu/compond.
+
