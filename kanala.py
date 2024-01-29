@@ -82,6 +82,7 @@ display=Msg('info')
 #args,cli=parser.parse_known_args()
 
 parser = argparse.ArgumentParser(description="このプログラムの説明.\nUse a csv file from anki with 2 kanjis per card forming words. Vocabulary list can also be checked for given kanjis.\nBase syntax kanala.py <anki csv file> [args] kanjis. For -w option anki file not needed",formatter_class=RawTextHelpFormatter)
+parser.add_argument('-b','--bushu',action="store_true",help='Display kanji with given bushu (only 1 at a time)')
 parser.add_argument('-c','--count',action="store_true",help='Count number of occurence of kanjis in anki csv output file, need filename')
 parser.add_argument('-e','--entry',action="store_true",help='Display kanji full entry when match')
 parser.add_argument('-E','--wentry',action="store_true",help='Display matched word only')
@@ -159,19 +160,19 @@ if args.debugdebug:
   print("noargs {}".format(noargs))
   exit(0)
 
-#def get_joyo_list(url="http://x0213.org/joyo-kanji-code/joyo-kanji-code-u.csv",out="/tmp/joyo"):
-#  try: 
-#    r = requests.get(url)
-#  except BaseException as e:
-#    print("Exception raised during request -> {}".format(e))
-#
-#  if r.status_code != 200:
-#    print("Return code not 200 -> {}".format(r.status_code))    
-#  else:
-#    if args.verbose:
-#      print("Got data from {}".format(url))
-#  open(out, "wb").write(r.content)
-#  return(out) 
+def get_joyo_list(url="http://x0213.org/joyo-kanji-code/joyo-kanji-code-u.csv",out="/tmp/joyo"):
+  try: 
+    r = requests.get(url)
+  except BaseException as e:
+    print("Exception raised during request -> {}".format(e))
+
+  if r.status_code != 200:
+    print("Return code not 200 -> {}".format(r.status_code))    
+  else:
+    if args.verbose:
+      print("Got data from {}".format(url))
+  open(out, "wb").write(r.content)
+  return(out) 
 
 def openfile(file,op="r"):
   try : 
@@ -204,6 +205,7 @@ class ankiKanjiDeck():
     self.entry=args.entry
     self.wentry=args.wentry
     self.find=args.find
+    self.bushu=args.bushu
 
     # joyo queries  
     if self.args.joyo != None:
@@ -251,8 +253,9 @@ class ankiKanjiDeck():
         if self.isKanji(i):
           self.searchSet.add(i)
 
+    # filelist -> {'稽': 1, '古': 1, ...}
     filelist=self.load_data2()
-    
+ 
     if args.multi != 0:
       self.buildMulti(filelist)
       # update self.search list with doublon[m]
@@ -274,7 +277,8 @@ class ankiKanjiDeck():
      
  
     if self.find == True:
-      wordlist=wordList(noargs,args)
+      kensaku=noargs[1:]
+      wordlist=wordList(kensaku,args)
       wordlist.getWordList()
       self.wordstr=wordlist.wordstr
       self.wordmatch=wordlist.match
@@ -292,6 +296,10 @@ class ankiKanjiDeck():
       exit()
  
     if args.joyocheck == True:
+      #虞
+      itaiji=[('頬','頰'),('剥','剝'),('𠮟','叱'),('填','塡'),('狭','挟')]
+      founditaiji=""
+      next=True
       self.getJoyo()
       ctr=0
       if args.verbose == True:
@@ -307,9 +315,18 @@ class ankiKanjiDeck():
         #exit()
       ctr=0
       for i in self.joyoSet-self.allJiSet:
+        for el in itaiji:
+          if i in el:
+            founditaiji+=i
+            next=False
+            continue
+        if next==False:
+          next=True
+          continue
         print(i,end='')
         ctr+=1
       print("\nNumber of chars {}".format(ctr))
+      print("異体字 : {}".format(founditaiji))
       exit()
 
     if self.remain == []:
@@ -449,7 +466,7 @@ class ankiKanjiDeck():
     try: 
       data = requests.get(u)
     except: 
-      print("ERROR")
+      print("ERROR loading joyo")
       exit(9)
     j=json.loads(data.text)
     for i in j:
@@ -616,10 +633,13 @@ class ankiKanjiDeck():
        print("load data2 search  {} ".format(self.searchSet))
     for line in self.fd.readlines():
       word=""
+      #['けいこ\u3000（芸能・武術などを練習、学問する）', '稽古', '稽（禾｜尤 旨）', '滑稽\u3000稽首', '古 （口｜十）', '古代\u3000中古\u3000古木\u3000古希\u3000古式\n']
       thisline=line.split("\t")
       if self.verifLine(thisline) == False:
         continue
       self.totallines+=1
+      ## BUG ? if 1 entry ?
+      display.debug(thisline)
       for i in thisline[2],thisline[4]:
         if len(i) > 0:
           try: word+=i[0]
