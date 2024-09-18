@@ -93,6 +93,7 @@ parser.add_argument('-D','--debugdebug',action="store_true",help='special debug 
 parser.add_argument('-d','--debug',action="store_true",help='debug mode')
 parser.add_argument('-j','--joyo',nargs="*",help='print joyo kanji, if other args they\'ll be matched against joyo list')
 parser.add_argument('-J','--joyocheck',action="store_true",help='Check joyo not in deck')
+parser.add_argument('-K','--nonjoyocheck',action="store_true",help='Check non joyo deck')
 parser.add_argument('-f','--find',action="store_true",help='For list of kanji check words in vocabulary list (as -w option).\nIt discards non joyo, word with chars already in the list and those with bad frequency. Display full result, can add -l option to restrict to a single list of words. Only 2 kanjis word are selected')
 parser.add_argument('-l','--list',action="store_true",help='Use list format (short) for output. usable in word option')
 parser.add_argument('-m','--multi',type=int,default=0,help='For kanji appearing mutiple time (default 2) display associated kanji for those words')
@@ -256,13 +257,14 @@ class ankiKanjiDeck():
         if self.isKanji(i):
           self.searchSet.add(i)
 
-    # filelist -> {'稽': 1, '古': 1, ...}
+    # filelist -> {'稽': 1, '古': 1, ...} kanji : occurence #
     filelist=self.load_data2()
+
  
     if args.multi != 0:
       self.buildMulti(filelist)
       # update self.search list with doublon[m]
-      filelist=self.load_data2()
+      #filelist=self.load_data2()
       #print(self.searchSet)
       self.remain=[]
       for i in self.match:
